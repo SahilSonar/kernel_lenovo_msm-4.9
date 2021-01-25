@@ -1,0 +1,114 @@
+/* Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&mdss_mdp {
+	dsi_ili7080dxiaomi_1080p_vid:qcom,mdss_dsi_ili7807dxiaomi_1080p_video{
+		qcom,mdss-dsi-panel-name ="ili7807dxiaomi_1080p_dsi_video";
+		qcom,mdss-dsi-panel-type = "dsi_video_mode";
+		qcom,mdss-dsi-panel-framerate = <60>;
+		qcom,mdss-dsi-virtual-channel-id = <0>;
+		qcom,mdss-dsi-stream = <0>;
+		qcom,mdss-dsi-panel-width = <1080>;
+		qcom,mdss-dsi-panel-height = <2160>;
+		qcom,mdss-dsi-h-front-porch = <20>;
+		qcom,mdss-dsi-h-back-porch = <40>;
+		qcom,mdss-dsi-h-pulse-width = <25>;
+		qcom,mdss-dsi-h-sync-skew = <0>;
+		qcom,mdss-dsi-v-back-porch = <8>;
+		qcom,mdss-dsi-v-front-porch = <14>;
+		qcom,mdss-dsi-v-pulse-width = <2>;
+		qcom,mdss-dsi-h-left-border = <0>;
+		qcom,mdss-dsi-h-right-border = <0>;
+		qcom,mdss-dsi-v-top-border = <0>;
+		qcom,mdss-dsi-v-bottom-border = <0>;
+		qcom,mdss-pan-physical-width-dimension = <65>;
+		qcom,mdss-pan-physical-height-dimension = <129>;
+		qcom,mdss-dsi-bpp = <24>;
+		qcom,mdss-dsi-color-order = "rgb_swap_rgb";
+		qcom,mdss-dsi-underflow-color = <0xff>;
+		qcom,mdss-dsi-border-color = <0>;
+		qcom,mdss-dsi-on-command = [39 01 00 00 00 00 04 FF 78 07 00
+			39 01 00 00 00 00 03 51 0F FF
+			39 01 00 00 00 00 02 53 2C
+			39 01 00 00 00 00 02 55 00
+			39 01 00 00 00 00 02 35 00
+			39 01 00 00 00 00 04 FF 78 07 05
+			39 01 00 00 00 00 02 03 40
+			39 01 00 00 00 00 02 04 00
+			39 01 00 00 00 00 04 FF 78 07 01
+			39 01 00 00 00 00 02 35 22
+			39 01 00 00 00 00 02 44 94
+			39 01 00 00 00 00 02 B4 60
+			39 01 00 00 00 00 02 63 0B
+			39 01 00 00 00 00 04 FF 78 07 06
+			39 01 00 00 00 00 02 0B 01
+			39 01 00 00 00 00 02 0E 62
+			39 01 00 00 00 00 02 0F 62
+			39 01 00 00 00 00 02 A0 06
+			39 01 00 00 00 00 02 A2 0B
+			39 01 00 00 00 00 02 A6 11
+			39 01 00 00 00 00 02 A7 03
+			39 01 00 00 00 00 02 AE 14
+			39 01 00 00 00 00 02 B2 33
+			39 01 00 00 00 00 02 B3 00
+			39 01 00 00 00 00 04 FF 78 07 00
+			39 01 00 00 78 00 02 11 00
+			39 01 00 00 0A 00 02 29 00
+			39 01 00 00 00 00 04 FF 78 07 05
+			39 01 00 00 00 00 02 03 40
+		       	39 01 00 00 00 00 02 04 00
+			39 01 00 00 00 00 04 FF 78 07 00
+			];
+		qcom,mdss-dsi-off-command = [
+			05 01 00 00 0A 00 02 28 00
+			05 01 00 00 78 00 02 10 00];
+		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
+		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
+		qcom,mdss-dsi-h-sync-pulse = <0>;
+		qcom,mdss-dsi-traffic-mode = "non_burst_sync_event";
+		qcom,mdss-dsi-lane-map = "lane_map_0123";
+		qcom,mdss-dsi-bllp-eof-power-mode;
+		qcom,mdss-dsi-bllp-power-mode;
+		qcom,mdss-dsi-tx-eot-append;
+		qcom,mdss-dsi-lane-0-state;
+		qcom,mdss-dsi-lane-1-state;
+		qcom,mdss-dsi-lane-2-state;
+		qcom,mdss-dsi-lane-3-state;
+		qcom,mdss-dsi-t-clk-post = <0x0a>;
+		qcom,mdss-dsi-t-clk-pre = <0x1e>;
+		qcom,mdss-dsi-dma-trigger = "trigger_sw";
+		qcom,mdss-dsi-mdp-trigger = "none";
+		qcom,mdss-dsi-lp11-init;
+		qcom,mdss-dsi-reset-sequence = <1 2>, <0 2>, <1 50>;
+		
+		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
+	    	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	    	qcom,mdss-dsi-bl-min-level = <64>;
+		qcom,mdss-dsi-bl-max-level = <1024>;
+	    
+	    
+	    qcom,mdss-dsi-panel-timings-phy-v2 = [1e 1c 04 06 02 03 04 a0
+		1e 1c 04 06 02 03 04 a0
+		1e 1c 04 06 02 03 04 a0
+		1e 1c 04 06 02 03 04 a0
+		1e 0e 04 05 02 03 04 a0];
+	    //qcom,esd-check-enabled;
+	    qcom,mdss-dsi-panel-status-check-mode = "reg_read";
+	    qcom,mdss-dsi-panel-status-command = [06 01 00 01 00 00 01 0a];
+	    qcom,mdss-dsi-panel-status-command-state = "dsi_lp_mode";
+	    qcom,mdss-dsi-panel-status-value = <0x9d 0x9d 0x9d 0x9d>;
+	    qcom,mdss-dsi-panel-on-check-value = <0x9d 0x9d 0x9d 0x9d>;
+	    qcom,mdss-dsi-panel-status-read-length = <4>;
+	    qcom,mdss-dsi-panel-max-error-count = <3>;
+        
+	};
+};
