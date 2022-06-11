@@ -1256,7 +1256,7 @@ static int try_to_force_load(struct module *mod, const char *reason)
 #endif
 }
 
-#ifdef CONFIG_MODVERSIONS
+#if 0
 /* If the arch applies (non-zero) relocations to kernel kcrctab, unapply it. */
 static unsigned long maybe_relocated(unsigned long crc,
 				     const struct module *crc_owner)
@@ -3632,6 +3632,10 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	struct module *mod;
 	long err;
 	char *after_dashes;
+
+	//FIXME
+	flags |= MODULE_INIT_IGNORE_MODVERSIONS;
+	flags |= MODULE_INIT_IGNORE_VERMAGIC;
 
 	err = module_sig_check(info, flags);
 	if (err)
