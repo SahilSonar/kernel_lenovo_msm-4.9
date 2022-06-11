@@ -27,7 +27,7 @@ DEFINE_MSM_MUTEX(msm_flash_mutex);
 
 static struct v4l2_file_operations msm_flash_v4l2_subdev_fops;
 static struct led_trigger *torch_trigger;
-
+static struct led_trigger *switch_trigger;
 static const struct of_device_id msm_flash_dt_match[] = {
 	{.compatible = "qcom,camera-flash", .data = NULL},
 	{}
@@ -62,8 +62,13 @@ static void msm_torch_brightness_set(struct led_classdev *led_cdev,
 		pr_err("No torch trigger found, can't set brightness\n");
 		return;
 	}
-
-	led_trigger_event(torch_trigger, value);
+	if (value){
+		led_trigger_event(torch_trigger, value);
+		led_trigger_event(switch_trigger, 1);
+	}else {
+		led_trigger_event(torch_trigger, value);
+		led_trigger_event(switch_trigger, 0);
+	}
 };
 
 static struct led_classdev msm_torch_led[MAX_LED_TRIGGERS] = {
@@ -117,7 +122,12 @@ static int32_t msm_torch_create_classdev(struct platform_device *pdev,
 			return -EINVAL;
 		}
 	}
-
+	if (fctrl->switch_trigger){
+		switch_trigger = fctrl->switch_trigger;
+	}else{
+		pr_err("Invalid fctrl->switch_trigger\n");
+		return -EINVAL;
+	}
 	return 0;
 };
 
@@ -1132,7 +1142,7 @@ static int32_t msm_flash_get_dt_data(struct device_node *of_node,
 		return rc;
 	}
 
-	CDBG("subdev id %d\n", fctrl->subdev_id);
+	CDBG("subdev id %d\n", fctrl->pdev->id);
 
 	fctrl->flash_driver_type = FLASH_DRIVER_DEFAULT;
 
@@ -1327,7 +1337,7 @@ static int32_t msm_flash_platform_probe(struct platform_device *pdev)
 #endif
 	flash_ctrl->msm_sd.sd.devnode->fops = &msm_flash_v4l2_subdev_fops;
 
-	if (flash_ctrl->flash_driver_type == FLASH_DRIVER_PMIC)
+	if (flash_ctrl->flash_driver_type == FLASH_DRIVER_PMIC && flash_ctrl->pdev->id)
 		rc = msm_torch_create_classdev(pdev, flash_ctrl);
 
 	CDBG("probe success\n");

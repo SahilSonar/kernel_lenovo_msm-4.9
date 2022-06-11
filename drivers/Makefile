@@ -179,3 +179,5 @@ obj-$(CONFIG_ESOC)              += esoc/
 obj-$(CONFIG_FPGA)		+= fpga/
 obj-$(CONFIG_SENSORS_SSC)		+= sensors/
 obj-$(CONFIG_TEE)		+= tee/
+obj-$(CONFIG_GOODIX_FINGERPRINT) += fingerprint/
+obj-y                           += wt_system_monitor/

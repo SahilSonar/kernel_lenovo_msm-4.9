@@ -273,6 +273,8 @@ extern void led_trigger_set_default(struct led_classdev *led_cdev);
 extern void led_trigger_set(struct led_classdev *led_cdev,
 			struct led_trigger *trigger);
 extern void led_trigger_remove(struct led_classdev *led_cdev);
+extern void led_set_brightness_by_name(char *name,
+			enum led_brightness brightness); 
 
 static inline void *led_get_trigger_data(struct led_classdev *led_cdev)
 {

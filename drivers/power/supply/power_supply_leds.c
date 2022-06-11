@@ -17,8 +17,28 @@
 
 #include "power_supply.h"
 
-/* Battery specific LEDs triggers. */
+static bool charger_mode=0;
+static bool into_charger_mode(void)	
+{	
+       int ret;
+       char *cmdline_charger = NULL;
+       char *temp;
 
+       cmdline_charger = strstr(saved_command_line, "androidboot.mode=");
+       if(cmdline_charger != NULL) {
+            temp = cmdline_charger + strlen("androidboot.mode=");
+            ret = strncmp(temp, "charger", strlen("charger"));
+	
+            if(ret == 0) {
+                  pr_err("into charger mode\n");
+                 return 1;/* charger mode*/
+            }
+        }
+
+        pr_err("other modes\n");
+        return 0;	
+}
+/* Battery specific LEDs triggers. */
 static void power_supply_update_bat_leds(struct power_supply *psy)
 {
 	union power_supply_propval status;
@@ -117,15 +137,50 @@ static void power_supply_update_gen_leds(struct power_supply *psy)
 
 	if (power_supply_get_property(psy, POWER_SUPPLY_PROP_ONLINE, &online))
 		return;
-
+  
 	dev_dbg(&psy->dev, "%s %d\n", __func__, online.intval);
-
 	if (online.intval)
 		led_trigger_event(psy->online_trig, LED_FULL);
 	else
 		led_trigger_event(psy->online_trig, LED_OFF);
 }
+static void power_supply_update_charge_leds(struct power_supply *psy)
+{
+        union power_supply_propval soc;
+        union power_supply_propval usb_online;
+        union power_supply_propval pc_port_online;
+        struct power_supply *psy_battery;
+        struct power_supply *psy_usb;
+        struct power_supply *psy_pc_port;
 
+        pr_err("power_supply_update_charge_leds:%s\n",psy->desc->name);
+        if(charger_mode){ 
+          psy_battery = power_supply_get_by_name("battery");
+          power_supply_get_property(psy_battery, POWER_SUPPLY_PROP_CAPACITY, &soc);
+           pr_err("power_supply_update_gen_leds:soc %d\n",soc.intval);
+          psy_usb = power_supply_get_by_name("usb");
+          power_supply_get_property(psy_usb, POWER_SUPPLY_PROP_ONLINE, &usb_online);
+          psy_pc_port = power_supply_get_by_name("pc_port");
+          power_supply_get_property(psy_pc_port, POWER_SUPPLY_PROP_ONLINE, &pc_port_online);
+           pr_err("power_supply_update_gen_leds:usb_online: %d pc_port_online: %d\n",usb_online.intval,pc_port_online.intval);
+         if(usb_online.intval||pc_port_online.intval){
+            if(soc.intval>99){  
+               led_set_brightness_by_name("red",0);
+               led_set_brightness_by_name("green",25);
+            }
+            else if((soc.intval<=99)&&(soc.intval>0)){  
+               led_set_brightness_by_name("red",25);
+               led_set_brightness_by_name("green",0);
+            }else{
+              led_set_brightness_by_name("red",0);
+              led_set_brightness_by_name("green",25);
+           }
+        }else{
+             led_set_brightness_by_name("red",0);
+             led_set_brightness_by_name("green",0);
+        }
+      }
+}
 static int power_supply_create_gen_triggers(struct power_supply *psy)
 {
 	psy->online_trig_name = kasprintf(GFP_KERNEL, "%s-online",
@@ -152,10 +207,13 @@ void power_supply_update_leds(struct power_supply *psy)
 		power_supply_update_bat_leds(psy);
 	else
 		power_supply_update_gen_leds(psy);
+
+       power_supply_update_charge_leds(psy); 
 }
 
 int power_supply_create_triggers(struct power_supply *psy)
 {
+        charger_mode = into_charger_mode(); 
 	if (psy->desc->type == POWER_SUPPLY_TYPE_BATTERY)
 		return power_supply_create_bat_triggers(psy);
 	return power_supply_create_gen_triggers(psy);

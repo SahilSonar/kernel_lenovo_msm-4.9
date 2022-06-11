@@ -245,7 +245,6 @@ struct flash_node_data {
 	bool				led_on;
 };
 
-
 struct flash_switch_data {
 	struct platform_device		*pdev;
 	struct regulator		*vreg;
@@ -1094,7 +1093,6 @@ static int qpnp_flash_led_calc_bharger_max_current(struct qpnp_flash_led *led,
 	return 0;
 }
 
-
 static int qpnp_flash_led_calc_thermal_current_lim(struct qpnp_flash_led *led,
 						   int *thermal_current_lim)
 {
@@ -1727,6 +1725,7 @@ static void qpnp_flash_led_brightness_set(struct led_classdev *led_cdev,
 	struct flash_node_data *fnode = NULL;
 	struct flash_switch_data *snode = NULL;
 	struct qpnp_flash_led *led = NULL;
+	union power_supply_propval pval = {0, }; 
 	int rc;
 
 	/*
@@ -1748,6 +1747,14 @@ static void qpnp_flash_led_brightness_set(struct led_classdev *led_cdev,
 		return;
 	}
 
+	if (!strncmp(led_cdev->name, "led:switch", strlen("led:switch"))) {
+		rc=is_main_psy_available(led);
+		if(rc==0){
+			pval.intval = value;
+			power_supply_set_property(led->main_psy,
+			POWER_SUPPLY_PROP_FLASH_STATUS, &pval);
+		}
+	}
 	spin_lock(&led->lock);
 	if (snode) {
 		rc = qpnp_flash_led_switch_set(snode, value > 0);

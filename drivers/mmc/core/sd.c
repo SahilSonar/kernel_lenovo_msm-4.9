@@ -1137,6 +1137,8 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	card->clk_scaling_highest = mmc_sd_get_max_clock(card);
 	card->clk_scaling_lowest = host->f_min;
 
+	pr_err("%s successed\n",__func__);
+
 	return 0;
 
 free_card:
@@ -1451,7 +1453,7 @@ int mmc_attach_sd(struct mmc_host *host)
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
-
+	pr_err("%s\n",__func__);
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (err)
 		return err;

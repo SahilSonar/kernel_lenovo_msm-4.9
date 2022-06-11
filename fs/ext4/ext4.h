@@ -935,7 +935,6 @@ enum {
 	I_DATA_SEM_QUOTA,
 };
 
-
 /*
  * fourth extended file system inode data in memory
  */
@@ -969,21 +968,7 @@ struct ext4_inode_info {
 
 	struct list_head i_orphan;	/* unlinked but open inodes */
 
-	/*
-	 * i_disksize keeps track of what the inode size is ON DISK, not
-	 * in memory.  During truncate, i_size is set to the new size by
-	 * the VFS prior to calling ext4_truncate(), but the filesystem won't
-	 * set i_disksize to 0 until the truncate is actually under way.
-	 *
-	 * The intent is that i_disksize always represents the blocks which
-	 * are used by this file.  This allows recovery to restart truncate
-	 * on orphans if we crash during truncate.  We actually write i_disksize
-	 * into the on-disk inode when writing inodes out, instead of i_size.
-	 *
-	 * The only time when i_disksize and i_size may be different is when
-	 * a truncate is in progress.  The only things which change i_disksize
-	 * are ext4_get_block (growth) and ext4_truncate (shrinkth).
-	 */
+	
 	loff_t	i_disksize;
 
 	/*
@@ -2036,11 +2021,9 @@ struct dx_hash_info
 	u32		*seed;
 };
 
-
 /* 32 and 64 bit signed EOF for dx directories */
 #define EXT4_HTREE_EOF_32BIT   ((1UL  << (32 - 1)) - 1)
 #define EXT4_HTREE_EOF_64BIT   ((1ULL << (64 - 1)) - 1)
-
 
 /*
  * Control parameters used by ext4_htree_next_block
@@ -2375,7 +2358,6 @@ extern struct inode *__ext4_new_inode(handle_t *, struct inode *, umode_t,
 				    type, nblocks)		    \
 	__ext4_new_inode(NULL, (dir), (mode), (qstr), (goal), (owner), \
 			 (type), __LINE__, (nblocks))
-
 
 extern void ext4_free_inode(handle_t *, struct inode *);
 extern struct inode * ext4_orphan_get(struct super_block *, unsigned long);

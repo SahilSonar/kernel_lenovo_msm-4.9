@@ -41,6 +41,7 @@
 #include <linux/timer.h>
 
 #include "peripheral-loader.h"
+#include <linux/wt_system_monitor.h>
 
 #define DISABLE_SSR 0x9889deed
 /* If set to 0x9889deed, call to subsystem_restart_dev() returns immediately */
@@ -1204,6 +1205,32 @@ int subsystem_restart_dev(struct subsys_device *dev)
 
 	name = dev->desc->name;
 
+#ifdef WT_BOOT_REASON
+	if (dev->restart_level == RESET_SOC) {
+		if (!strcmp(name,"wcnss"))
+			set_reset_magic(RESET_MAGIC_WCNSS);
+		else if (!strcmp(name,"modem"))
+			set_reset_magic(RESET_MAGIC_MODEM);
+		else if (!strcmp(name,"adsp"))
+			set_reset_magic(RESET_MAGIC_ADSP);
+		else if (!strcmp(name,"venus"))
+			set_reset_magic(RESET_MAGIC_VENUS);
+		else if (!strcmp(name,"a506_zap"))
+			set_reset_magic(RESET_MAGIC_A5XX_ZAP);
+		else if (!strcmp(name,"ipa_fws"))
+			set_reset_magic(RESET_MAGIC_IPA_FWS);
+		else if (!strcmp(name,"spss"))
+			set_reset_magic(RESET_MAGIC_SPSS);
+		else if (!strcmp(name,"a540_zap"))
+			set_reset_magic(RESET_MAGIC_A5XX_ZAP);
+		else if (!strcmp(name,"slpi"))
+			set_reset_magic(RESET_MAGIC_SLPI);
+		else
+			set_reset_magic(RESET_MAGIC_SUBSYSTEM);
+		save_panic_key_log("%s subsystem failure reason: %s.\n", name, subsys_restart_reason);
+	}
+#endif
+
 	/*
 	 * If a system reboot/shutdown is underway, ignore subsystem errors.
 	 * However, print a message so that we know that a subsystem behaved
@@ -1744,6 +1771,12 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	subsys->desc->sysmon_pid = -1;
 	strlcpy(subsys->desc->fw_name, desc->name,
 			sizeof(subsys->desc->fw_name));
+
+#ifdef WT_FINAL_RELEASE
+	subsys->restart_level = RESET_SUBSYS_COUPLED;
+#else
+	subsys->restart_level = RESET_SOC;
+#endif
 
 	subsys->notify = subsys_notif_add_subsys(desc->name);
 

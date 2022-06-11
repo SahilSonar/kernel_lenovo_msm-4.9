@@ -234,8 +234,7 @@ static int verity_handle_err(struct dm_verity *v, enum verity_block_type type,
 out:
 	if (v->mode == DM_VERITY_MODE_LOGGING)
 		return 0;
-
-	if (v->mode == DM_VERITY_MODE_RESTART)
+	if ((v->mode == DM_VERITY_MODE_RESTART) && (system_state != SYSTEM_POWER_OFF) && (system_state != SYSTEM_RESTART))
 		kernel_restart("dm-verity device corrupted");
 
 	return 1;

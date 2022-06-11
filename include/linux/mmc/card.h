@@ -397,7 +397,9 @@ struct mmc_card {
 /* Make sure CMDQ is empty before queuing DCMD */
 #define MMC_QUIRK_CMDQ_EMPTY_BEFORE_DCMD (1 << 18)
 #define MMC_QUIRK_QCA9379_SETTINGS (1 << 19)    /* QCA9379 card settings*/
-
+#ifdef CONFIG_MMC_FFU
+#define MMC_STATE_FFUED		(1<<22) 	/* card has been FFUed */
+#endif
 
 	unsigned int		erase_size;	/* erase size in sectors */
  	unsigned int		erase_shift;	/* if erase unit is power 2 */

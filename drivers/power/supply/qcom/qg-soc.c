@@ -133,7 +133,6 @@ static bool is_scaling_required(struct qpnp_qg *chip)
 		/* SOC has not changed */
 		return false;
 
-
 	if (chip->catch_up_soc > chip->msoc && !is_usb_present(chip))
 		/* USB is not present and SOC has increased */
 		return false;
@@ -168,12 +167,19 @@ static bool maint_soc_timeout(struct qpnp_qg *chip)
 
 static void update_msoc(struct qpnp_qg *chip)
 {
-	int rc = 0, sdam_soc, batt_temp = 0,  batt_soc_32bit = 0;
+	int rc = 0, sdam_soc, batt_protect, batt_temp = 0,  batt_soc_32bit = 0;
+	union power_supply_propval prop = {0, };
 	bool usb_present = is_usb_present(chip);
+	rc = power_supply_get_property(chip->batt_psy,
+		POWER_SUPPLY_PROP_INPUT_SUSPEND, &prop);
+	if (rc < 0) {
+		pr_err("Failed to get input suspend, rc=%d\n", rc);
+	}
+	batt_protect = prop.intval;
 
 	if (chip->catch_up_soc > chip->msoc) {
 		/* SOC increased */
-		if (usb_present) /* Increment if USB is present */
+		if (usb_present && !batt_protect) /* Increment if USB is present */
 			chip->msoc += chip->dt.delta_soc;
 	} else if (chip->catch_up_soc < chip->msoc) {
 		/* SOC dropped */

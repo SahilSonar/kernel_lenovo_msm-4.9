@@ -33,6 +33,7 @@
 #include <soc/qcom/smem.h>
 
 #include "peripheral-loader.h"
+#include <linux/wt_system_monitor.h>
 
 #define XO_FREQ			19200000
 #define PROXY_TIMEOUT_MS	10000
@@ -839,6 +840,9 @@ static struct pil_reset_ops pil_ops_trusted = {
 	.deinit_image = pil_deinit_image_trusted,
 };
 
+#ifdef WT_BOOT_REASON
+char subsys_restart_reason[MAX_SSR_REASON_LEN];
+#endif
 static void log_failure_reason(const struct pil_tz_data *d)
 {
 	u32 size;
@@ -862,6 +866,11 @@ static void log_failure_reason(const struct pil_tz_data *d)
 
 	strlcpy(reason, smem_reason, min(size, MAX_SSR_REASON_LEN));
 	pr_err("%s subsystem failure reason: %s.\n", name, reason);
+#ifdef WT_BOOT_REASON
+	strlcpy(subsys_restart_reason, smem_reason, min(size, MAX_SSR_REASON_LEN));
+#endif
+	smem_reason[0] = '\0';
+	wmb();
 }
 
 static int subsys_shutdown(const struct subsys_desc *subsys, bool force_stop)
@@ -952,9 +961,13 @@ static irqreturn_t subsys_wdog_bite_irq_handler(int irq, void *dev_id)
 	pr_err("Watchdog bite received from %s!\n", d->subsys_desc.name);
 
 	if (d->subsys_desc.system_debug &&
-			!gpio_get_value(d->subsys_desc.err_fatal_gpio))
+			!gpio_get_value(d->subsys_desc.err_fatal_gpio)) {
+#ifdef WT_BOOT_REASON
+		set_reset_magic(RESET_MAGIC_SUBSYSTEM);
+#endif
 		panic("%s: System ramdump requested. Triggering device restart!\n",
 							__func__);
+    } 
 	subsys_set_crash_status(d->subsys, CRASH_STATUS_WDOG_BITE);
 	log_failure_reason(d);
 	subsystem_restart_dev(d->subsys);

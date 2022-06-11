@@ -26,6 +26,8 @@
 #include "dsi-panel-hx8399c-fhd-plus-video.dtsi"
 #include "dsi-panel-hx83100a-800p-video.dtsi"
 #include "dsi-panel-boent51021-1200p-video.dtsi"
+#include "dsi-panel-ili7807dxiaomi-1080p-video.dtsi"
+#include "dsi-panel-ili7807d-1080p-video.dtsi"
 #include "dsi-panel-hx8394d-wxga-video.dtsi"
 #include "dsi-panel-inxnt51021-1200p-video.dtsi"
 

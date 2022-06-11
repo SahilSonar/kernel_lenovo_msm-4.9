@@ -120,6 +120,8 @@ struct qpnp_qg {
 	bool			parallel_enabled;
 	bool			usb_present;
 	bool			charge_full;
+	int			battery_cmd_thermal_test_mode;  
+	int			battery_cmd_thermal_test_mode_value;
 	int			charge_status;
 	int			charge_type;
 	int			chg_iterm_ma;
@@ -207,6 +209,5 @@ enum qg_wa_flags {
 	QG_VBAT_LOW_WA = BIT(0),
 	QG_RECHARGE_SOC_WA = BIT(1),
 };
-
 
 #endif /* __QG_CORE_H__ */

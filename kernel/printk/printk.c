@@ -327,6 +327,7 @@ static int console_may_schedule;
  * non-prinatable characters are escaped in the "\xff" notation.
  */
 
+#define TASK_COMM_LEN 16
 enum log_flags {
 	LOG_NOCONS	= 1,	/* already flushed, do not print to console */
 	LOG_NEWLINE	= 2,	/* text ended with a newline */
@@ -342,6 +343,8 @@ struct printk_log {
 	u8 facility;		/* syslog facility */
 	u8 flags:5;		/* internal record flags */
 	u8 level:3;		/* syslog level */
+	pid_t pid;
+	char comm[TASK_COMM_LEN];
 }
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 __packed __aligned(4)
@@ -578,6 +581,9 @@ static int log_store(int facility, int level,
 	msg->facility = facility;
 	msg->level = level & 7;
 	msg->flags = flags & 0x1f;
+    msg->pid = current->pid;
+	memset(msg->comm, 0, TASK_COMM_LEN);
+	memcpy(msg->comm, current->comm, TASK_COMM_LEN-1);
 	if (ts_nsec > 0)
 		msg->ts_nsec = ts_nsec;
 	else
@@ -1191,6 +1197,18 @@ static size_t print_time(u64 ts, char *buf)
 		       (unsigned long)ts, rem_nsec / 1000);
 }
 
+static bool printk_task_info = 1;
+module_param_named(task_info, printk_task_info, bool, S_IRUGO | S_IWUSR);
+
+static size_t print_task_info(pid_t pid, const char *task_name,char *buf)
+{
+	if (!printk_task_info)
+		return 0;
+	if (!buf)
+		return snprintf(NULL, 0, "[%d, %s]", pid, task_name);
+	return sprintf(buf, "[%d, %s]", pid, task_name);
+}
+
 static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
 {
 	size_t len = 0;
@@ -1211,6 +1229,7 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog, char *buf)
 	}
 
 	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
+	len += print_task_info(msg->pid, msg->comm, buf ? buf + len : NULL);
 	return len;
 }
 

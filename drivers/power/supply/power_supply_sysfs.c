@@ -145,6 +145,9 @@ static ssize_t power_supply_show_property(struct device *dev,
 	if (off == POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT)
 		return scnprintf(buf, PAGE_SIZE, "%lld\n",
 				value.int64val);
+	else if ((off == POWER_SUPPLY_PROP_STOPCHARGING_TEST)
+		||(off == POWER_SUPPLY_PROP_STARTCHARGING_TEST))
+		return 0;
 	else
 		return scnprintf(buf, PAGE_SIZE, "%d\n",
 				value.intval);
@@ -241,6 +244,8 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(scope),
 	POWER_SUPPLY_ATTR(charge_term_current),
 	POWER_SUPPLY_ATTR(calibrate),
+	POWER_SUPPLY_ATTR(StopCharging_Test),
+	POWER_SUPPLY_ATTR(StartCharging_Test),
 	/* Local extensions */
 	POWER_SUPPLY_ATTR(usb_hc),
 	POWER_SUPPLY_ATTR(usb_otg),
@@ -277,6 +282,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(charge_done),
 	POWER_SUPPLY_ATTR(flash_active),
 	POWER_SUPPLY_ATTR(flash_trigger),
+	POWER_SUPPLY_ATTR(flash_status),
 	POWER_SUPPLY_ATTR(force_tlim),
 	POWER_SUPPLY_ATTR(dp_dm),
 	POWER_SUPPLY_ATTR(input_current_limited),
@@ -444,6 +450,9 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 	for (j = 0; j < psy->desc->num_properties; j++) {
 		struct device_attribute *attr;
 		char *line;
+		if ((psy->desc->properties[j] == POWER_SUPPLY_PROP_STOPCHARGING_TEST)
+			|| (psy->desc->properties[j] == POWER_SUPPLY_PROP_STARTCHARGING_TEST))
+			continue;
 
 		attr = &power_supply_attrs[psy->desc->properties[j]];
 

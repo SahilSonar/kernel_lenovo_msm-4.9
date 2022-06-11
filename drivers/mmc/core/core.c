@@ -4373,10 +4373,10 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
 	host->f_init = freq;
 
-#ifdef CONFIG_MMC_DEBUG
-	pr_info("%s: %s: trying to init card at %u Hz\n",
+//#ifdef CONFIG_MMC_DEBUG
+	pr_err("%s: %s: trying to init card at %u Hz\n",
 		mmc_hostname(host), __func__, host->f_init);
-#endif
+//#endif
 	mmc_power_up(host, host->ocr_avail);
 
 	/*

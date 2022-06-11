@@ -1063,9 +1063,15 @@ fb_blank(struct fb_info *info, int blank)
 
 	event.info = info;
 	event.data = &blank;
-
+//TABV7-4781  fast screen on yanglong.wt start
+ 	if (info->blank == blank) {
+		if (info->fbops->fb_blank)
+			ret = info->fbops->fb_blank(blank, info);
+		return ret;
+	}
+//TABV7-4781 fast screen on yanglong.wt end
 	early_ret = fb_notifier_call_chain(FB_EARLY_EVENT_BLANK, &event);
-
+	pr_err("fb_blank:%d\n",blank);
 	if (info->fbops->fb_blank)
  		ret = info->fbops->fb_blank(blank, info);
 
@@ -1079,7 +1085,10 @@ fb_blank(struct fb_info *info, int blank)
 		if (!early_ret)
 			fb_notifier_call_chain(FB_R_EARLY_EVENT_BLANK, &event);
 	}
-
+//TABV7-4781 fast screen on yanglong.wt start
+	if (!ret)
+		info->blank = blank;
+//TABV7-4781 fast screen on yanglong.wt end
  	return ret;
 }
 EXPORT_SYMBOL(fb_blank);
@@ -1207,6 +1216,7 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		console_unlock();
 		break;
 	case FBIOBLANK:
+		
 		console_lock();
 		if (!lock_fb_info(info)) {
 			console_unlock();
@@ -1644,6 +1654,7 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 		if (!registered_fb[i])
 			break;
 	fb_info->node = i;
+	fb_info->blank = -1;//TABV7-4781 fast screen on yanglong.wt 
 	atomic_set(&fb_info->count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);

@@ -29,7 +29,8 @@
 #include "mdss_dba_utils.h"
 #endif
 #include "mdss_debug.h"
-
+#include <linux/hardware_info.h>
+extern char Lcm_name[HARDWARE_MAX_ITEM_LONGTH];
 #define DT_CMD_HDR 6
 #define DEFAULT_MDP_TRANSFER_TIME 14000
 
@@ -212,9 +213,9 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
-static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
+static char  led_pwm1[3] = {0x51, 0xff,0xff};	/* DTYPE_DCS_WRITE1 */
 static struct dsi_cmd_desc backlight_cmd = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 1, sizeof(led_pwm1)},
 	led_pwm1
 };
 
@@ -222,6 +223,8 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
 	struct dcs_cmd_req cmdreq;
 	struct mdss_panel_info *pinfo;
+	static char count;
+	static int last_level = 0;
 
 	pinfo = &(ctrl->panel_data.panel_info);
 	if (pinfo->dcs_cmd_by_left) {
@@ -229,9 +232,21 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 			return;
 	}
 
+	led_pwm1[1] = (level >> 6)&0x0f;
+	led_pwm1[2] = (level << 2)&0xfc;
+	if(0 == last_level && 0 != level){
+		pr_err("%s: backlight on,level=%d\n", __func__, level);
+	}
+	if(0 != last_level && 0 == level){
+		pr_err("%s: backlight off\n", __func__);
+	}
+	count++;
 	pr_debug("%s: level=%d\n", __func__, level);
 
-	led_pwm1[1] = (unsigned char)level;
+	if(count > 5){
+		count = 0;
+		pr_err("%s: level=%d pwm1=%d pwm2=%d \n", __func__, level,led_pwm1[1],led_pwm1[2]);
+	}
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;
@@ -246,6 +261,7 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 		cmdreq.flags |= CMD_REQ_LP_MODE;
 
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+	last_level = level;
 }
 
 static void mdss_dsi_panel_set_idle_mode(struct mdss_panel_data *pdata,
@@ -913,6 +929,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	if ((pinfo->mipi.dms_mode == DYNAMIC_MODE_SWITCH_IMMEDIATE) &&
 			(pinfo->mipi.boot_mode != pinfo->mipi.mode))
 		on_cmds = &ctrl->post_dms_on_cmds;
+	pr_err("%s[Display]: panel on code +. \n", __func__);
 
 	pr_debug("%s: ndx=%d cmd_cnt=%d\n", __func__,
 				ctrl->ndx, on_cmds->cmd_cnt);
@@ -930,6 +947,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 
 end:
 	pr_debug("%s:-\n", __func__);
+	pr_err("%s[Display]: panel on code -. \n", __func__);
 	return ret;
 }
 
@@ -1016,6 +1034,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	pinfo = &pdata->panel_info;
 	ctrl = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+	pr_err("%s[Display]: panel off code +. \n", __func__);
 
 	pr_debug("%s: ctrl=%pK ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
@@ -1033,6 +1052,7 @@ end:
 	/* clear idle state */
 	ctrl->idle = false;
 	pr_debug("%s:-\n", __func__);
+	pr_err("%s[Display]: panel off code -. \n", __func__);
 	return 0;
 }
 
@@ -1768,6 +1788,15 @@ static bool mdss_dsi_cmp_panel_reg_v2(struct mdss_dsi_ctrl_pdata *ctrl)
 
 	for (i = 0; i < ctrl->status_cmds.cmd_cnt; i++)
 		len += lenp[i];
+
+	for (i = 0; i < len; i++) {
+		pr_err("[%i] return:0x%x status:0x%x\n",
+			i, (unsigned int)ctrl->return_buf[i],
+			(unsigned int)ctrl->status_value[j + i]);
+		MDSS_XLOG(ctrl->ndx, ctrl->return_buf[i],
+			ctrl->status_value[j + i]);
+		j += len;
+	}
 
 	for (j = 0; j < ctrl->groups; ++j) {
 		for (i = 0; i < len; ++i) {
@@ -2973,6 +3002,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 		return rc;
 	}
 
+	strlcpy(Lcm_name, panel_name, HARDWARE_MAX_ITEM_LONGTH);
 	pinfo->dynamic_switch_pending = false;
 	pinfo->is_lpm_mode = false;
 	pinfo->esd_rdy = false;

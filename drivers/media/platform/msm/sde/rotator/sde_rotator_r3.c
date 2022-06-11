@@ -569,13 +569,6 @@ static int sde_hw_rotator_elapsed_swts(u32 ts_curr, u32 ts_prev)
 	return sign_extend32(diff, (SDE_REGDMA_SWTS_SHIFT - 1));
 }
 
-/**
- * sde_hw_rotator_pending_swts - Check if the given context is still pending
- * @rot: Pointer to hw rotator
- * @ctx: Pointer to rotator context
- * @pswts: Pointer to returned reference software timestamp, optional
- * @return: true if context has pending requests
- */
 static int sde_hw_rotator_pending_swts(struct sde_hw_rotator *rot,
 		struct sde_hw_rotator_context *ctx, u32 *pswts)
 {
@@ -1028,12 +1021,6 @@ static void sde_hw_rotator_vbif_setting(struct sde_hw_rotator *rot)
 	}
 }
 
-/*
- * sde_hw_rotator_setup_timestamp_packet - setup timestamp writeback command
- * @ctx: Pointer to rotator context
- * @mask: Bit mask location of the timestamp
- * @swts: Software timestamp
- */
 static void sde_hw_rotator_setup_timestamp_packet(
 		struct sde_hw_rotator_context *ctx, u32 mask, u32 swts)
 {
@@ -2648,7 +2635,6 @@ static int sde_hw_rotator_config(struct sde_rot_hw_resource *hw,
 			SDE_ROT_FLAG_SECURE_OVERLAY_SESSION : 0;
 	flags |= (item->flags & SDE_ROTATION_SECURE_CAMERA) ?
 			SDE_ROT_FLAG_SECURE_CAMERA_SESSION : 0;
-
 
 	sspp_cfg.img_width = item->input.width;
 	sspp_cfg.img_height = item->input.height;

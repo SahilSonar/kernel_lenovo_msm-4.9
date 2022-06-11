@@ -18,6 +18,7 @@
 #include "msm_cci.h"
 #include "msm_camera_dt_util.h"
 #include "msm_sensor_driver.h"
+#include <linux/hardware_info.h>
 
 /* Logging macro */
 #undef CDBG
@@ -814,6 +815,12 @@ int32_t msm_sensor_driver_probe(void *setting,
 		slave_info->sensor_id_info.sensor_id =
 			slave_info32->sensor_id_info.sensor_id;
 
+		slave_info->sensor_id_info.eeprom_slave =
+			slave_info32->sensor_id_info.eeprom_slave;
+		slave_info->sensor_id_info.vendor_id_addr =
+			slave_info32->sensor_id_info.vendor_id_addr;
+		slave_info->sensor_id_info.vendor_id=slave_info32->sensor_id_info.vendor_id;
+
 		slave_info->sensor_id_info.setting.addr_type =
 			slave_info32->sensor_id_info.setting.addr_type;
 		slave_info->sensor_id_info.setting.data_type =
@@ -946,6 +953,11 @@ int32_t msm_sensor_driver_probe(void *setting,
 		slave_info->sensor_id_info.sensor_id_reg_addr,
 		slave_info->sensor_id_info.sensor_id,
 		slave_info->sensor_id_info.sensor_id_mask);
+	CDBG("eeprom_slave 0x%X vendor_id_addr 0x%X",
+		slave_info->sensor_id_info.eeprom_slave,
+		slave_info->sensor_id_info.vendor_id_addr);
+	CDBG("vendor_id 0x%X",
+		slave_info->sensor_id_info.vendor_id);
 	CDBG("power up size %d power down size %d\n",
 		slave_info->power_setting_array.size,
 		slave_info->power_setting_array.size_down);
@@ -1038,6 +1050,9 @@ int32_t msm_sensor_driver_probe(void *setting,
 	camera_info->sensor_id_mask = slave_info->sensor_id_info.sensor_id_mask;
 	camera_info->setting = &(slave_info->sensor_id_info.setting);
 
+	camera_info->eeprom_slave = slave_info->sensor_id_info.eeprom_slave;
+	camera_info->vendor_id_addr = slave_info->sensor_id_info.vendor_id_addr;
+	camera_info->vendor_id = slave_info->sensor_id_info.vendor_id;
 	/* Fill CCI master, slave address and CCI default params */
 	if (!s_ctrl->sensor_i2c_client) {
 		pr_err("failed: sensor_i2c_client %pK",
@@ -1137,6 +1152,28 @@ CSID_TG:
 	}
 
 	pr_err("%s probe succeeded", slave_info->sensor_name);
+
+  if(slave_info->sensor_name != NULL){
+     if(!strcmp(slave_info->sensor_name, "s5k3l6")){
+        hardwareinfo_set_prop(HARDWARE_BACK_CAM, "s5k3l6");
+        hardwareinfo_set_prop(HARDWARE_BACK_CAM_MOUDULE_ID, "OFILM");
+     }else if(!strcmp(slave_info->sensor_name, "imx132")){
+        hardwareinfo_set_prop(HARDWARE_BACK_SUB_CAM, "imx132");
+        hardwareinfo_set_prop(HARDWARE_BACK_SUB_CAM_MOUDULE_ID, "SUNNY");
+     }else if(!strcmp(slave_info->sensor_name, "gc2375h")){
+        hardwareinfo_set_prop(HARDWARE_FRONT_CAM, "gc2375h");
+        hardwareinfo_set_prop(HARDWARE_FRONT_CAM_MOUDULE_ID, "CXT");
+     }else if(!strcmp(slave_info->sensor_name, "gc5025a")) {
+        hardwareinfo_set_prop(HARDWARE_FRONT_CAM, "gc5025a");
+        hardwareinfo_set_prop(HARDWARE_FRONT_CAM_MOUDULE_ID, "HLT");
+     }else if(!strcmp(slave_info->sensor_name, "gc5025aw")) {
+        hardwareinfo_set_prop(HARDWARE_BACK_CAM, "gc5025aw");
+        hardwareinfo_set_prop(HARDWARE_BACK_CAM_MOUDULE_ID, "HLT");
+     }else if(!strcmp(slave_info->sensor_name, "s5k3l6_qtech")) {
+        hardwareinfo_set_prop(HARDWARE_BACK_CAM, "s5k3l6_qtech");
+        hardwareinfo_set_prop(HARDWARE_BACK_CAM_MOUDULE_ID, "QTECH");
+     }
+  }
 
 	s_ctrl->bypass_video_node_creation =
 		slave_info->bypass_video_node_creation;

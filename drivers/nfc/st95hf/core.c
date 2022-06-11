@@ -849,10 +849,7 @@ static irqreturn_t st95hf_irq_thread_handler(int irq, void  *st95hfcontext)
 	if (result)
 		goto end;
 
-	/*
-	 * If select protocol is done on wtx req. do select protocol
-	 * again with default values
-	 */
+	
 	if (wtx) {
 		wtx = false;
 		result = st95hf_handle_wtx(stcontext, false, 0);

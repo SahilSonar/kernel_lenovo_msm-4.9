@@ -2371,7 +2371,7 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 				rc);
 			goto err_out;
 		}
-
+/*
 		rc = qpnp_pon_masked_write(pon, QPNP_PON_S3_DBC_CTL(pon),
 				QPNP_PON_S3_DBC_DELAY_MASK, s3_debounce);
 		if (rc) {
@@ -2380,6 +2380,7 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 				rc);
 			goto err_out;
 		}
+*/
 	}
 
 	/* program s3 source */
@@ -2406,6 +2407,7 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 	 * been configured by bootloader then this operation will
 	 * not be effective.
 	 */
+/*
 	rc = qpnp_pon_masked_write(pon, QPNP_PON_S3_SRC(pon),
 			QPNP_PON_S3_SRC_MASK, s3_src_reg);
 	if (rc) {
@@ -2413,7 +2415,7 @@ static int qpnp_pon_probe(struct platform_device *pdev)
 			rc);
 		goto err_out;
 	}
-
+*/
 	dev_set_drvdata(&pdev->dev, pon);
 
 	INIT_DELAYED_WORK(&pon->bark_work, bark_work_func);

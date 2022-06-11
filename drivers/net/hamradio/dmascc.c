@@ -19,7 +19,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
@@ -44,13 +43,11 @@
 #include <net/ax25.h>
 #include "z8530.h"
 
-
 /* Number of buffers per channel */
 
 #define NUM_TX_BUF      2	/* NUM_TX_BUF >= 1 (min. 2 recommended) */
 #define NUM_RX_BUF      6	/* NUM_RX_BUF >= 1 (min. 2 recommended) */
 #define BUF_SIZE        1576	/* BUF_SIZE >= mtu + hard_header_len */
-
 
 /* Cards supported */
 
@@ -75,7 +72,6 @@
 
 #define MAX_NUM_DEVS    32
 
-
 /* SCC chips supported */
 
 #define Z8530           0
@@ -83,7 +79,6 @@
 #define Z85230          2
 
 #define CHIPNAMES       { "Z8530", "Z85C30", "Z85230" }
-
 
 /* I/O registers */
 
@@ -112,7 +107,6 @@
 #define TWIN_DMA_CLR_FF 0x0a
 #define TWIN_SPARE_2    0x0b
 
-
 /* PackeTwin I/O register values */
 
 /* INT_REG */
@@ -138,7 +132,6 @@
 #define TWIN_DMA_FDX_T3R1  0x1b
 #define TWIN_DMA_FDX_T1R3  0x1d
 
-
 /* Status values */
 
 #define IDLE      0
@@ -152,12 +145,10 @@
 #define RX_ON     8
 #define DCD_OFF   9
 
-
 /* Ioctls */
 
 #define SIOCGSCCPARAM SIOCDEVPRIVATE
 #define SIOCSSCCPARAM (SIOCDEVPRIVATE+1)
-
 
 /* Data types */
 
@@ -227,7 +218,6 @@ struct scc_info {
 	spinlock_t register_lock;	/* Per device register lock */
 };
 
-
 /* Function declarations */
 static int setup_adapter(int card_base, int type, int n) __init;
 
@@ -257,7 +247,6 @@ static void tx_isr(struct scc_priv *priv);
 static void es_isr(struct scc_priv *priv);
 static void tm_isr(struct scc_priv *priv);
 
-
 /* Initialization variables */
 
 static int io[MAX_NUM_DEVS] __initdata = { 0, };
@@ -265,12 +254,10 @@ static int io[MAX_NUM_DEVS] __initdata = { 0, };
 /* Beware! hw[] is also used in dmascc_exit(). */
 static struct scc_hardware hw[NUM_TYPES] = HARDWARE;
 
-
 /* Global variables */
 
 static struct scc_info *first;
 static unsigned long rand;
-
 
 MODULE_AUTHOR("Klaus Kudielka");
 MODULE_DESCRIPTION("Driver for high-speed SCC boards");
@@ -600,7 +587,6 @@ static int __init setup_adapter(int card_base, int type, int n)
 		goto out4;
 	}
 
-
 	info->next = first;
 	first = info;
 	printk(KERN_INFO "dmascc: found %s (%s) at %#3x, irq %d\n",
@@ -621,7 +607,6 @@ static int __init setup_adapter(int card_base, int type, int n)
       out:
 	return err;
 }
-
 
 /* Driver functions */
 
@@ -651,7 +636,6 @@ static void write_scc(struct scc_priv *priv, int reg, int val)
 	}
 }
 
-
 static void write_scc_data(struct scc_priv *priv, int val, int fast)
 {
 	unsigned long flags;
@@ -675,7 +659,6 @@ static void write_scc_data(struct scc_priv *priv, int val, int fast)
 		return;
 	}
 }
-
 
 static int read_scc(struct scc_priv *priv, int reg)
 {
@@ -702,7 +685,6 @@ static int read_scc(struct scc_priv *priv, int reg)
 	}
 }
 
-
 static int read_scc_data(struct scc_priv *priv)
 {
 	int rc;
@@ -721,7 +703,6 @@ static int read_scc_data(struct scc_priv *priv)
 		return rc;
 	}
 }
-
 
 static int scc_open(struct net_device *dev)
 {
@@ -864,7 +845,6 @@ static int scc_open(struct net_device *dev)
 	return 0;
 }
 
-
 static int scc_close(struct net_device *dev)
 {
 	struct scc_priv *priv = dev->ml_priv;
@@ -893,7 +873,6 @@ static int scc_close(struct net_device *dev)
 	return 0;
 }
 
-
 static int scc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct scc_priv *priv = dev->ml_priv;
@@ -919,7 +898,6 @@ static int scc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return -EINVAL;
 	}
 }
-
 
 static int scc_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
@@ -968,14 +946,12 @@ static int scc_send_packet(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-
 static int scc_set_mac_address(struct net_device *dev, void *sa)
 {
 	memcpy(dev->dev_addr, ((struct sockaddr *) sa)->sa_data,
 	       dev->addr_len);
 	return 0;
 }
-
 
 static inline void tx_on(struct scc_priv *priv)
 {
@@ -1021,7 +997,6 @@ static inline void tx_on(struct scc_priv *priv)
 		write_scc(priv, R0, RES_EOM_L);
 }
 
-
 static inline void rx_on(struct scc_priv *priv)
 {
 	unsigned long flags;
@@ -1059,7 +1034,6 @@ static inline void rx_on(struct scc_priv *priv)
 	write_scc(priv, R3, RxENABLE | Rx8 | RxCRC_ENAB);
 }
 
-
 static inline void rx_off(struct scc_priv *priv)
 {
 	/* Disable receiver */
@@ -1073,7 +1047,6 @@ static inline void rx_off(struct scc_priv *priv)
 	if (priv->param.dma >= 0)
 		disable_dma(priv->param.dma);
 }
-
 
 static void start_timer(struct scc_priv *priv, int t, int r15)
 {
@@ -1089,7 +1062,6 @@ static void start_timer(struct scc_priv *priv, int t, int r15)
 		}
 	}
 }
-
 
 static inline unsigned char random(void)
 {
@@ -1126,7 +1098,6 @@ static inline void z8530_isr(struct scc_info *info)
 	/* Ok, no interrupts pending from this 8530. The INT line should
 	   be inactive now. */
 }
-
 
 static irqreturn_t scc_isr(int irq, void *dev_id)
 {
@@ -1165,7 +1136,6 @@ static irqreturn_t scc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
 static void rx_isr(struct scc_priv *priv)
 {
 	if (priv->param.dma >= 0) {
@@ -1190,7 +1160,6 @@ static void rx_isr(struct scc_priv *priv)
 		}
 	}
 }
-
 
 static void special_condition(struct scc_priv *priv, int rc)
 {
@@ -1257,7 +1226,6 @@ static void special_condition(struct scc_priv *priv, int rc)
 	}
 }
 
-
 static void rx_bh(struct work_struct *ugli_api)
 {
 	struct scc_priv *priv = container_of(ugli_api, struct scc_priv, rx_work);
@@ -1294,7 +1262,6 @@ static void rx_bh(struct work_struct *ugli_api)
 	spin_unlock_irqrestore(&priv->ring_lock, flags);
 }
 
-
 static void tx_isr(struct scc_priv *priv)
 {
 	int i = priv->tx_tail, p = priv->tx_ptr;
@@ -1317,7 +1284,6 @@ static void tx_isr(struct scc_priv *priv)
 
 	priv->tx_ptr = p;
 }
-
 
 static void es_isr(struct scc_priv *priv)
 {
@@ -1404,7 +1370,6 @@ static void es_isr(struct scc_priv *priv)
 		tm_isr(priv);
 
 }
-
 
 static void tm_isr(struct scc_priv *priv)
 {

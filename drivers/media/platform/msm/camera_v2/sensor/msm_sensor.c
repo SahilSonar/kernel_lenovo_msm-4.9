@@ -23,6 +23,7 @@
 
 static struct msm_camera_i2c_fn_t msm_sensor_cci_func_tbl;
 static struct msm_camera_i2c_fn_t msm_sensor_secure_func_tbl;
+int msm_sensor_check_vendor_id(struct msm_sensor_ctrl_t *s_ctrl);
 
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
@@ -215,7 +216,14 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 			msleep(20);
 			continue;
 		} else {
-			break;
+			rc = msm_sensor_check_vendor_id(s_ctrl);
+			if (rc < 0){
+				msm_camera_power_down(power_info,
+				s_ctrl->sensor_device_type, sensor_i2c_client);
+				break;
+			} else {
+				break;
+			}
 		}
 	}
 
@@ -1428,6 +1436,60 @@ int msm_sensor_check_id(struct msm_sensor_ctrl_t *s_ctrl)
 	if (rc < 0)
 		pr_err("%s:%d match id failed rc %d\n", __func__, __LINE__, rc);
 	return rc;
+}
+int msm_sensor_check_vendor_id(struct msm_sensor_ctrl_t *s_ctrl)
+{
+  int rc = 0;
+  uint16_t chipid = 0;
+  uint16_t chipid_2 = 0;
+  struct msm_camera_i2c_client *sensor_i2c_client;
+  struct msm_camera_slave_info *slave_info;
+  const char *sensor_name;
+  unsigned short orig_slave_addr = 0;
+  if (!s_ctrl) {
+    pr_err("%s:%d failed: %pK\n",
+      __func__, __LINE__, s_ctrl);
+    return -EINVAL;
+  }
+  sensor_i2c_client = s_ctrl->sensor_i2c_client;
+  slave_info = s_ctrl->sensordata->slave_info;
+  sensor_name = s_ctrl->sensordata->sensor_name;
+
+  if (!sensor_i2c_client || !slave_info || !sensor_name) {
+    pr_err("%s:%d failed: %pK %pK %pK\n",
+      __func__, __LINE__, sensor_i2c_client, slave_info,
+      sensor_name);
+    return -EINVAL;
+  }
+
+  pr_info("%s: eeprom_slave 0x%x\n", __func__, slave_info->eeprom_slave);
+  if (slave_info->eeprom_slave != 0x00){
+    orig_slave_addr = sensor_i2c_client->cci_client->sid;
+    pr_info("orig_slave_addr=%x",orig_slave_addr);
+    sensor_i2c_client->cci_client->sid = slave_info->eeprom_slave >> 1;
+    rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
+      sensor_i2c_client, slave_info->vendor_id_addr,
+      &chipid, MSM_CAMERA_I2C_BYTE_DATA);
+    if (rc < 0) {
+      pr_err("%s: %s: read id failed\n", __func__, sensor_name);
+      return rc;
+    }
+    rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
+      sensor_i2c_client, slave_info->vendor_id_addr+1,
+      &chipid_2, MSM_CAMERA_I2C_BYTE_DATA);
+    if (rc < 0) {
+      pr_err("%s: %s: read id failed\n", __func__, sensor_name);
+      return rc;
+    }
+    sensor_i2c_client->cci_client->sid = orig_slave_addr;
+
+    if ((chipid << 8 | chipid_2) !=  slave_info->vendor_id){
+			pr_err("%s chipid %x chipid_2 %x\n", __func__, chipid, chipid_2);
+      pr_err("%s vendor_id %x\n",__func__, slave_info->vendor_id);
+      return -ENODEV;
+    }
+  }
+  return rc;
 }
 
 static int msm_sensor_power(struct v4l2_subdev *sd, int on)

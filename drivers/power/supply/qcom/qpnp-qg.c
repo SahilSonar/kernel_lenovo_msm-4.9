@@ -31,6 +31,7 @@
 #include <linux/qpnp/qpnp-adc.h>
 #include <uapi/linux/qg.h>
 #include <uapi/linux/qg-profile.h>
+#include <linux/proc_fs.h>
 #include "fg-alg.h"
 #include "qg-sdam.h"
 #include "qg-core.h"
@@ -40,7 +41,7 @@
 #include "qg-battery-profile.h"
 #include "qg-defs.h"
 
-static int qg_debug_mask;
+static int qg_debug_mask = 0x48;
 module_param_named(
 	debug_mask, qg_debug_mask, int, 0600
 );
@@ -1838,7 +1839,16 @@ static const struct power_supply_desc qg_psy_desc = {
 static int qg_charge_full_update(struct qpnp_qg *chip)
 {
 	union power_supply_propval prop = {0, };
-	int rc, recharge_soc, health;
+	int rc, recharge_soc, health, ui_soc;
+	bool usb_present = is_usb_present(chip);
+
+	rc = power_supply_get_property(chip->qg_psy,
+		POWER_SUPPLY_PROP_CAPACITY, &prop);
+	if (rc < 0) {
+		pr_err("Failed to get battery capacity, rc=%d\n", rc);
+		goto out;
+	}
+	ui_soc = prop.intval;
 
 	if (!chip->dt.hold_soc_while_full)
 		goto out;
@@ -1863,7 +1873,8 @@ static int qg_charge_full_update(struct qpnp_qg *chip)
 	qg_dbg(chip, QG_DEBUG_STATUS, "msoc=%d health=%d charge_full=%d charge_done=%d\n",
 				chip->msoc, health, chip->charge_full,
 				chip->charge_done);
-	if (chip->charge_done && !chip->charge_full) {
+	if ((chip->charge_done || (100 == ui_soc && usb_present))
+		&& !chip->charge_full) {
 		if (chip->msoc >= 99 && health == POWER_SUPPLY_HEALTH_GOOD) {
 			chip->charge_full = true;
 			qg_dbg(chip, QG_DEBUG_STATUS, "Setting charge_full (0->1) @ msoc=%d\n",
@@ -1875,9 +1886,6 @@ static int qg_charge_full_update(struct qpnp_qg *chip)
 		}
 	} else if ((!chip->charge_done || chip->msoc <= recharge_soc)
 				&& chip->charge_full) {
-
-		bool usb_present = is_usb_present(chip);
-
 		/*
 		 * force a recharge only if SOC <= recharge SOC and
 		 * we have not started charging.
@@ -1894,7 +1902,6 @@ static int qg_charge_full_update(struct qpnp_qg *chip)
 			else
 				qg_dbg(chip, QG_DEBUG_STATUS, "Forced recharge\n");
 		}
-
 
 		if (chip->charge_done)
 			return 0;	/* wait for recharge */
@@ -2074,7 +2081,6 @@ done:
 	return rc;
 }
 
-
 static void qg_status_change_work(struct work_struct *work)
 {
 	struct qpnp_qg *chip = container_of(work,
@@ -2229,7 +2235,6 @@ static ssize_t qg_device_read(struct file *file, char __user *buf, size_t count,
 		rc = -EFAULT;
 		goto fail_read;
 	}
-
 
 	if (copy_to_user(buf, &chip->kdata, data_size)) {
 		pr_err("Failed in copy_to_user\n");
@@ -2891,7 +2896,6 @@ done_fifo:
 	if (rc < 0)
 		pr_err("Failed to reconfigure S7-delay rc=%d\n", rc);
 
-
 	return 0;
 }
 
@@ -2980,7 +2984,6 @@ static int qg_request_irqs(struct qpnp_qg *chip)
 				return rc;
 		}
 	}
-
 
 	return 0;
 }
@@ -3079,7 +3082,7 @@ static int qg_alg_init(struct qpnp_qg *chip)
 #define DEFAULT_S2_ACC_LENGTH		128
 #define DEFAULT_S2_ACC_INTVL_MS		100
 #define DEFAULT_DELTA_SOC		1
-#define DEFAULT_SHUTDOWN_SOC_SECS	360
+#define DEFAULT_SHUTDOWN_SOC_SECS	86400
 #define DEFAULT_COLD_TEMP_THRESHOLD	0
 #define DEFAULT_CL_MIN_START_SOC	10
 #define DEFAULT_CL_MAX_START_SOC	15
@@ -3089,7 +3092,7 @@ static int qg_alg_init(struct qpnp_qg *chip)
 #define DEFAULT_CL_MAX_DEC_DECIPERC	20
 #define DEFAULT_CL_MIN_LIM_DECIPERC	500
 #define DEFAULT_CL_MAX_LIM_DECIPERC	100
-#define DEFAULT_SHUTDOWN_TEMP_DIFF	60	/* 6 degC */
+#define DEFAULT_SHUTDOWN_TEMP_DIFF	150	/* 6 degC */
 #define DEFAULT_ESR_QUAL_CURRENT_UA	130000
 #define DEFAULT_ESR_QUAL_VBAT_UV	7000
 #define DEFAULT_ESR_DISABLE_SOC		1000
@@ -3602,7 +3605,62 @@ static const struct dev_pm_ops qpnp_qg_pm_ops = {
 	.suspend	= qpnp_qg_suspend,
 	.resume		= qpnp_qg_resume,
 };
+static ssize_t temp_cmd_write(struct file *file, const char *buffer, size_t count, loff_t *data)
+{
+	int len = 0, bat_thr_test_mode, bat_thr_test_value;
+	char desc[32];
+	struct platform_device *pdev = ((struct seq_file *)file->private_data)->private;
+	struct qpnp_qg *chip = platform_get_drvdata(pdev);
 
+	len = (count < (sizeof(desc) - 1)) ? count : (sizeof(desc) - 1);
+	if (copy_from_user(desc, buffer, len))
+		return 0;
+
+	desc[len] = '\0';
+
+	if (sscanf(desc, "%d %d", &bat_thr_test_mode, &bat_thr_test_value) == 2) {
+		chip->battery_cmd_thermal_test_mode = bat_thr_test_mode;
+		chip->battery_cmd_thermal_test_mode_value = bat_thr_test_value;
+		return count;
+	}
+
+	pr_err("bad argument, echo [bat_thr_test_mode] [bat_thr_test_value] > temp_cmd\n");
+	return -EINVAL;
+}
+
+static int proc_utilization_show(struct seq_file *m, void *v)
+{
+	struct platform_device *pdev = m->private;
+	struct qpnp_qg *chip = platform_get_drvdata(pdev);
+	seq_printf(m,"=> battery_temp=%d\n",chip->battery_cmd_thermal_test_mode_value);
+
+	return 0;
+}
+
+static int proc_utilization_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_utilization_show, PDE_DATA(inode));
+}
+
+static const struct file_operations temp_cmd_proc_fops = {
+	.open = proc_utilization_open,
+	.read = seq_read,
+	.write = temp_cmd_write,
+};
+
+static void init_proc_log(struct platform_device *pdev)
+{
+	struct proc_dir_entry *battery_dir = NULL;
+
+	pr_err("wt:init_proc_log start\n");
+	battery_dir = proc_mkdir("battery_cmd", NULL);
+	if (!battery_dir) {
+		pr_err("[%s]: mkdir /proc/mtk_battery_cmd failed\n", __func__);
+	} else {
+		proc_create_data("temp_cmd", S_IRUGO | S_IWUSR, battery_dir, &temp_cmd_proc_fops, pdev);
+		pr_debug("wt:proc create file success\n");
+	}
+}
 static int qpnp_qg_probe(struct platform_device *pdev)
 {
 	int rc = 0, soc = 0, nom_cap_uah;
@@ -3771,6 +3829,7 @@ static int qpnp_qg_probe(struct platform_device *pdev)
 		goto fail_votable;
 	}
 
+	init_proc_log(pdev);
 	qg_get_battery_capacity(chip, &soc);
 	pr_info("QG initialized! battery_profile=%s SOC=%d\n",
 				qg_get_battery_type(chip), soc);

@@ -230,6 +230,9 @@ extern int mmc_cache_barrier(struct mmc_card *);
 
 extern int mmc_detect_card_removed(struct mmc_host *host);
 
+#if defined(CONFIG_MMC_FFU)
+extern int mmc_reinit_oldcard(struct mmc_host *host);
+#endif
 extern void mmc_blk_init_bkops_statistics(struct mmc_card *card);
 
 extern void mmc_deferred_scaling(struct mmc_host *host, unsigned long timeout);

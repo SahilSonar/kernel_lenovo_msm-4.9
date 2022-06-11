@@ -183,7 +183,6 @@ out:
 	sock_put(sk);
 }
 
-
 static int dccp_v6_send_response(const struct sock *sk, struct request_sock *req)
 {
 	struct inet_request_sock *ireq = inet_rsk(req);
@@ -203,7 +202,6 @@ static int dccp_v6_send_response(const struct sock *sk, struct request_sock *req
 	fl6.fl6_dport = ireq->ir_rmt_port;
 	fl6.fl6_sport = htons(ireq->ir_num);
 	security_req_classify_flow(req, flowi6_to_flowi(&fl6));
-
 
 	rcu_read_lock();
 	final_p = fl6_update_dst(&fl6, rcu_dereference(np->opt), &final);
@@ -328,7 +326,7 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (inet_csk_reqsk_queue_is_full(sk))
 		goto drop;
 
-	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
+	if (sk_acceptq_is_full(sk)/* && inet_csk_reqsk_queue_young(sk) > 1*/)
 		goto drop;
 
 	req = inet_reqsk_alloc(&dccp6_request_sock_ops, sk, true);
@@ -448,7 +446,6 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 
 		return newsk;
 	}
-
 
 	if (sk_acceptq_is_full(sk))
 		goto out_overflow;

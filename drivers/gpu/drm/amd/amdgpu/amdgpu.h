@@ -343,7 +343,6 @@ struct amdgpu_dummy_page {
 int amdgpu_dummy_page_init(struct amdgpu_device *adev);
 void amdgpu_dummy_page_fini(struct amdgpu_device *adev);
 
-
 /*
  * Clocks
  */
@@ -710,7 +709,6 @@ struct amdgpu_flip_work {
 	struct fence_cb			cb;
 	bool				async;
 };
-
 
 /*
  * CP & rings.
@@ -1295,8 +1293,6 @@ struct amdgpu_wb {
 int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb);
 
-
-
 enum amdgpu_int_thermal_type {
 	THERMAL_TYPE_NONE,
 	THERMAL_TYPE_EXTERNAL,
@@ -1741,7 +1737,6 @@ struct amdgpu_firmware {
  * Benchmarking
  */
 void amdgpu_benchmark(struct amdgpu_device *adev, int test_number);
-
 
 /*
  * Testing
@@ -2351,7 +2346,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 	((adev)->pp_enabled ?						\
 	      (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (l)) : \
 	      (adev)->pm.funcs->get_mclk((adev), (l)))
-
 
 #define amdgpu_dpm_force_performance_level(adev, l) \
 	((adev)->pp_enabled ?						\

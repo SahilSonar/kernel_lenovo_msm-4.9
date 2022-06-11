@@ -36,8 +36,8 @@
 /{
 	mtp_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
-		#include "qg-batterydata-ascent-3450mah.dtsi"
-		#include "qg-batterydata-mlp356477-2800mah.dtsi"
+	        #include "qg-batterydata_lenovo_ATL_5180mAh.dtsi"
+		#include "qg-batterydata_lenovo_SUNWODA_5180mAh.dtsi"
 	};
 };
 
@@ -235,6 +235,22 @@
 			};
 		};
 	};
+
+        usbio-therm-usr {
+		polling-delay-passive = <0>;
+		polling-delay = <0>;
+		thermal-sensors = <&pmi632_adc_tm 0x53>;
+		thermal-governor = "user_space";
+
+		trips {
+			active-config0 {
+				temperature = <65000>;
+				hysteresis = <1000>;
+				type = "passive";
+			};
+		};
+	};
+
 
 	quiet-therm-adc {
 		polling-delay-passive = <0>;

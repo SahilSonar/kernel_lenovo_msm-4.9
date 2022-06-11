@@ -32,6 +32,7 @@
 #include <soc/qcom/minidump.h>
 #include <soc/qcom/watchdog.h>
 #include <linux/dma-mapping.h>
+#include <linux/wt_system_monitor.h>
 
 #define MODULE_NAME "msm_watchdog"
 #define WDT0_ACCSCSSNBARK_INT 0
@@ -521,12 +522,24 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 	nanosec_rem = do_div(t, 1000000000);
 	dev_info(wdog_dd->dev, "Watchdog bark! Now = %lu.%06lu\n",
 			(unsigned long) t, nanosec_rem / 1000);
+#ifdef WT_BOOT_REASON
+	save_panic_key_log("Watchdog bark! Now = %lu.%06lu\n",
+			(unsigned long) t, nanosec_rem / 1000);
+#endif
 
 	nanosec_rem = do_div(wdog_dd->last_pet, 1000000000);
 	dev_info(wdog_dd->dev, "Watchdog last pet at %lu.%06lu\n",
 			(unsigned long) wdog_dd->last_pet, nanosec_rem / 1000);
+#ifdef WT_BOOT_REASON
+	save_panic_key_log("Watchdog last pet at %lu.%06lu\n",
+			(unsigned long) wdog_dd->last_pet, nanosec_rem / 1000);
+#endif
+
 	if (wdog_dd->do_ipi_ping)
 		dump_cpu_alive_mask(wdog_dd);
+#ifdef WT_BOOT_REASON
+	set_reset_magic(RESET_MAGIC_WDT_BARK);
+#endif
 	msm_trigger_wdog_bite();
 	panic("Failed to cause a watchdog bite! - Falling back to kernel panic!");
 	return IRQ_HANDLED;

@@ -29,11 +29,10 @@
 			&& (value) >= (right)) \
 		|| ((left) <= (right) && (left) <= (value) \
 			&& (value) <= (right)))
-
 struct range_data {
-	u32 low_threshold;
-	u32 high_threshold;
-	u32 value;
+	int low_threshold;
+	int high_threshold;
+	int value;
 };
 
 struct step_chg_cfg {
@@ -134,7 +133,7 @@ static bool is_usb_available(struct step_chg_info *chip)
 
 static int read_range_data_from_node(struct device_node *node,
 		const char *prop_str, struct range_data *ranges,
-		u32 max_threshold, u32 max_value)
+		int max_threshold, int max_value)
 {
 	int rc = 0, i, length, per_tuple_length, tuples;
 
@@ -160,7 +159,7 @@ static int read_range_data_from_node(struct device_node *node,
 	}
 
 	rc = of_property_read_u32_array(node, prop_str,
-			(u32 *)ranges, length);
+			(int *)ranges, length);
 	if (rc) {
 		pr_err("Read %s failed, rc=%d", prop_str, rc);
 		return rc;
@@ -291,7 +290,7 @@ static int get_step_chg_jeita_setting_from_profile(struct step_chg_info *chip)
 			chip->jeita_fcc_config->fcc_cfg,
 			BATT_HOT_DECIDEGREE_MAX, max_fcc_ma * 1000);
 	if (rc < 0) {
-		pr_debug("Read qcom,jeita-fcc-ranges failed from battery profile, rc=%d\n",
+		pr_err("Read qcom,jeita-fcc-ranges failed from battery profile, rc=%d\n",
 					rc);
 		chip->sw_jeita_cfg_valid = false;
 	}
@@ -301,7 +300,7 @@ static int get_step_chg_jeita_setting_from_profile(struct step_chg_info *chip)
 			chip->jeita_fv_config->fv_cfg,
 			BATT_HOT_DECIDEGREE_MAX, max_fv_uv);
 	if (rc < 0) {
-		pr_debug("Read qcom,jeita-fv-ranges failed from battery profile, rc=%d\n",
+		pr_err("Read qcom,jeita-fv-ranges failed from battery profile, rc=%d\n",
 					rc);
 		chip->sw_jeita_cfg_valid = false;
 	}
@@ -362,14 +361,15 @@ static int get_val(struct range_data *range, int hysteresis, int current_index,
 	int i;
 
 	*new_index = -EINVAL;
-
 	/*
 	 * If the threshold is lesser than the minimum allowed range,
-	 * return -ENODATA.
 	 */
-	if (threshold < range[0].low_threshold)
-		return -ENODATA;
-
+	if (threshold < range[0].low_threshold) {
+		*new_index = 0;
+		*val = range[0].value;
+		pr_debug("wt:lesser than the minimum allowed range %d,get_val = %d\n", range[0].low_threshold, range[0].value);
+		return 0;
+	}
 	/* First try to find the matching index without hysteresis */
 	for (i = 0; i < MAX_STEP_CHG_ENTRIES; i++) {
 		if (!range[i].high_threshold && !range[i].low_threshold) {
@@ -550,7 +550,7 @@ static int handle_jeita(struct step_chg_info *chip)
 		/* changing FCC is a must */
 		return -EINVAL;
 
-	vote(chip->fcc_votable, JEITA_VOTER, fcc_ua ? true : false, fcc_ua);
+	vote(chip->fcc_votable, JEITA_VOTER, true, fcc_ua);
 
 	rc = get_val(chip->jeita_fv_config->fv_cfg,
 			chip->jeita_fv_config->hysteresis,
@@ -560,6 +560,9 @@ static int handle_jeita(struct step_chg_info *chip)
 			&fv_uv);
 	if (rc < 0)
 		fv_uv = 0;
+
+	pr_err("wt:jeita %s = %d FCC = %duA FV = %duV\n",
+		chip->jeita_fcc_config->prop_name, pval.intval, fcc_ua, fv_uv);
 
 	chip->fv_votable = find_votable("FV");
 	if (!chip->fv_votable)
@@ -575,6 +578,7 @@ static int handle_jeita(struct step_chg_info *chip)
 	 * If JEITA float voltage is same as max-vfloat of battery then
 	 * skip any further VBAT specific checks.
 	 */
+/*
 	rc = power_supply_get_property(chip->batt_psy,
 				POWER_SUPPLY_PROP_VOLTAGE_MAX, &pval);
 	if (rc || (pval.intval == fv_uv)) {
@@ -582,10 +586,12 @@ static int handle_jeita(struct step_chg_info *chip)
 		goto set_jeita_fv;
 	}
 
+*/
 	/*
 	 * Suspend USB input path if battery voltage is above
 	 * JEITA VFLOAT threshold.
 	 */
+/*
 	if (fv_uv > 0) {
 		rc = power_supply_get_property(chip->batt_psy,
 				POWER_SUPPLY_PROP_VOLTAGE_NOW, &pval);
@@ -594,6 +600,7 @@ static int handle_jeita(struct step_chg_info *chip)
 		else if (pval.intval < (fv_uv - JEITA_SUSPEND_HYST_UV))
 			vote(chip->usb_icl_votable, JEITA_VOTER, false, 0);
 	}
+*/
 
 set_jeita_fv:
 	vote(chip->fv_votable, JEITA_VOTER, fv_uv ? true : false, fv_uv);

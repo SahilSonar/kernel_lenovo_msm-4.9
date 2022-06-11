@@ -318,7 +318,11 @@ int qg_get_battery_temp(struct qpnp_qg *chip, int *temp)
 		*temp = 250;
 		return 0;
 	}
-
+	if(chip->battery_cmd_thermal_test_mode) {
+		*temp = chip->battery_cmd_thermal_test_mode_value;
+		pr_err("wt: enter thermal test mode, test value=%d\n",chip->battery_cmd_thermal_test_mode_value);
+		return 0;
+	}
 	rc = qpnp_vadc_read(chip->vadc_dev, VADC_BAT_THERM_PU2, &result);
 	if (rc) {
 		pr_err("Failed reading adc channel=%d, rc=%d\n",
@@ -329,7 +333,10 @@ int qg_get_battery_temp(struct qpnp_qg *chip, int *temp)
 			result.physical, result.measurement);
 
 	*temp = (int)result.physical;
-
+	if(*temp < -200) {
+		*temp = -200;
+		pr_debug("wt: ntc pin missing,temperature -20 degree\n");
+	}
 	return rc;
 }
 

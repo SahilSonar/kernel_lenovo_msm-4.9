@@ -1049,7 +1049,6 @@ static void dasd_eckd_clear_conf_data(struct dasd_device *device)
 	}
 }
 
-
 static int dasd_eckd_read_conf(struct dasd_device *device)
 {
 	void *conf_data;
@@ -1519,7 +1518,6 @@ static int dasd_eckd_read_features(struct dasd_device *device)
 	dasd_sfree_request(cqr, cqr->memdev);
 	return rc;
 }
-
 
 /*
  * Build CP for Perform Subsystem Function - SSC.
@@ -3459,7 +3457,6 @@ static int prepare_itcw(struct itcw *itcw,
 	int sector = 0;
 	int dn, d;
 
-
 	/* setup prefix data */
 	basepriv = basedev->private;
 	startpriv = startdev->private;
@@ -3976,7 +3973,6 @@ static struct dasd_ccw_req *dasd_raw_build_cp(struct dasd_device *startdev,
 out:
 	return cqr;
 }
-
 
 static int
 dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
@@ -4758,7 +4754,6 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 	}
 	free_page((unsigned long) page);
 }
-
 
 /*
  * Print sense data from a tcw.

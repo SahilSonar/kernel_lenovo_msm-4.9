@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/batterydata-lib.h>
 #include <linux/power_supply.h>
+#include <linux/hardware_info.h>
 
 static int of_batterydata_read_lut(const struct device_node *np,
 			int max_cols, int max_rows, int *ncols, int *nrows,
@@ -320,6 +321,7 @@ struct device_node *of_batterydata_get_best_profile(
 {
 	struct batt_ids batt_ids;
 	struct device_node *node, *best_node = NULL;
+	struct device_node *default_node = NULL;
 	const char *battery_type = NULL;
 	int delta = 0, best_delta = 0, best_id_kohm = 0, id_range_pct,
 		i = 0, rc = 0, limit = 0;
@@ -342,6 +344,9 @@ struct device_node *of_batterydata_get_best_profile(
 	 * Find the battery data with a battery id resistor closest to this one
 	 */
 	for_each_child_of_node(batterydata_container_node, node) {
+		rc = of_property_read_string(node, "qcom,battery-type",&battery_type);
+		if (!rc && strcmp(battery_type, "lenovo_ATL_5180mAh") == 0)
+			default_node = node;
 		if (batt_type != NULL) {
 			rc = of_property_read_string(node, "qcom,battery-type",
 							&battery_type);
@@ -377,7 +382,9 @@ struct device_node *of_batterydata_get_best_profile(
 
 	if (best_node == NULL) {
 		pr_err("No battery data found\n");
-		return best_node;
+		best_node = default_node;
+		best_id_kohm = abs(batt_id_kohm);
+		//return best_node;
 	}
 
 	/* check that profile id is in range of the measured batt_id */
@@ -385,15 +392,18 @@ struct device_node *of_batterydata_get_best_profile(
 			((best_id_kohm * id_range_pct) / 100)) {
 		pr_err("out of range: profile id %d batt id %d pct %d",
 			best_id_kohm, batt_id_kohm, id_range_pct);
-		return NULL;
+		//return NULL;
 	}
 
 	rc = of_property_read_string(best_node, "qcom,battery-type",
 							&battery_type);
-	if (!rc)
+	if (!rc) {
+		hardwareinfo_set_prop(HARDWARE_BATTERY_ID, battery_type);
 		pr_info("%s found\n", battery_type);
-	else
+	} else {
+		hardwareinfo_set_prop(HARDWARE_BATTERY_ID, "Not found specific type");
 		pr_info("%s found\n", best_node->name);
+	}
 
 	return best_node;
 }

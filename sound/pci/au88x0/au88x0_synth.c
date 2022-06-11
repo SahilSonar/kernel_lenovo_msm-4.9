@@ -112,7 +112,6 @@ static int vortex_wt_allocroute(vortex_t * vortex, int wt, int nr_ch)
 	return 0;
 }
 
-
 static void vortex_wt_connect(vortex_t * vortex, int en)
 {
 	int i, ii, mix;
@@ -216,53 +215,32 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 	switch (reg) {
 		/* Voice specific parameters */
 	case 0:		/* running */
-		/*
-		pr_debug( "vortex: WT SetReg(0x%x) = 0x%08x\n",
-		       WT_RUN(wt), (int)val);
-		*/
+		
 		hwwrite(vortex->mmio, WT_RUN(wt), val);
 		return 0xc;
 	case 1:		/* param 0 */
-		/*
-		pr_debug( "vortex: WT SetReg(0x%x) = 0x%08x\n",
-		       WT_PARM(wt,0), (int)val);
-		*/
+		
 		hwwrite(vortex->mmio, WT_PARM(wt, 0), val);
 		return 0xc;
 	case 2:		/* param 1 */
-		/*
-		pr_debug( "vortex: WT SetReg(0x%x) = 0x%08x\n",
-		       WT_PARM(wt,1), (int)val);
-		*/
+		
 		hwwrite(vortex->mmio, WT_PARM(wt, 1), val);
 		return 0xc;
 	case 3:		/* param 2 */
-		/*
-		pr_debug( "vortex: WT SetReg(0x%x) = 0x%08x\n",
-		       WT_PARM(wt,2), (int)val);
-		*/
+		
 		hwwrite(vortex->mmio, WT_PARM(wt, 2), val);
 		return 0xc;
 	case 4:		/* param 3 */
-		/*
-		pr_debug( "vortex: WT SetReg(0x%x) = 0x%08x\n",
-		       WT_PARM(wt,3), (int)val);
-		*/
+		
 		hwwrite(vortex->mmio, WT_PARM(wt, 3), val);
 		return 0xc;
 	case 6:		/* mute */
-		/*
-		pr_debug( "vortex: WT SetReg(0x%x) = 0x%08x\n",
-		       WT_MUTE(wt), (int)val);
-		*/
+		
 		hwwrite(vortex->mmio, WT_MUTE(wt), val);
 		return 0xc;
 	case 0xb:
 			/* delay */
-		/*
-		pr_debug( "vortex: WT SetReg(0x%x) = 0x%08x\n",
-		       WT_DELAY(wt,0), (int)val);
-		*/
+		
 		hwwrite(vortex->mmio, WT_DELAY(wt, 3), val);
 		hwwrite(vortex->mmio, WT_DELAY(wt, 2), val);
 		hwwrite(vortex->mmio, WT_DELAY(wt, 1), val);

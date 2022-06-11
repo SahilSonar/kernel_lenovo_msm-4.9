@@ -127,11 +127,7 @@
 				<&pmic_analog_codec>;
 		asoc-codec-names = "msm-stub-codec.1", "msm-dig-codec",
 					"analog-codec";
-		asoc-wsa-codec-names = "wsa881x-i2c-codec.2-000f";
-		asoc-wsa-codec-prefixes = "SpkrMono";
-		msm-vdd-wsa-switch-supply = <&pm8953_l5>;
-		qcom,msm-vdd-wsa-switch-voltage = <1800000>;
-		qcom,msm-vdd-wsa-switch-current = <10000>;
+		
 	};
 
 	cdc_us_euro_sw: msm_cdc_pinctrl_us_euro_sw {
@@ -162,7 +158,6 @@
 		pinctrl-1 = <&pri_tlmm_lines_sus &pri_tlmm_ws_sus>;
 	};
 
-
 	i2c@78b6000 {
 		status = "okay";
 		#address-cells = <1>;
@@ -185,18 +180,21 @@
 
 	wsa881x_analog_vi_gpio: wsa881x_analog_vi_pctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
+		status = "disabled";
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&wsa_vi_on>;
 		pinctrl-1 = <&wsa_vi_off>;
 	};
 	wsa881x_analog_clk_gpio: wsa881x_analog_clk_pctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
+		status = "disabled";
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&wsa_clk_on>;
 		pinctrl-1 = <&wsa_clk_off>;
 	};
 	wsa881x_analog_reset_gpio: wsa881x_analog_reset_pctrl {
 		compatible = "qcom,msm-cdc-pinctrl";
+		status = "disabled";
 		pinctrl-names = "aud_active", "aud_sleep";
 		pinctrl-0 = <&wsa_reset_on>;
 		pinctrl-1 = <&wsa_reset_off>;

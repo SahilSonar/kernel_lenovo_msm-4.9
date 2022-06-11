@@ -18,6 +18,8 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/consumer.h>
 #include <linux/extcon.h>
+#include <linux/usb/tcpci.h>
+#include <linux/usb/tcpm.h>
 #include <linux/alarmtimer.h>
 #include "storm-watch.h"
 
@@ -80,7 +82,7 @@ enum print_reason {
 #define SDP_100_MA			100000
 #define SDP_CURRENT_UA			500000
 #define CDP_CURRENT_UA			1500000
-#define DCP_CURRENT_UA			1500000
+#define DCP_CURRENT_UA			2000000  
 #define HVDCP_CURRENT_UA		3000000
 #define TYPEC_DEFAULT_CURRENT_UA	900000
 #define TYPEC_MEDIUM_CURRENT_UA		1500000
@@ -302,6 +304,8 @@ struct smb_charger {
 	int			*weak_chg_icl_ua;
 	struct qpnp_vadc_chip	*vadc_dev;
 	bool			pd_not_supported;
+	bool			is_charger_mode;
+	bool                    report_usb_status_flag;
 
 	/* locks */
 	struct mutex		lock;
@@ -319,6 +323,7 @@ struct smb_charger {
 
 	/* notifiers */
 	struct notifier_block	nb;
+	struct notifier_block	chg_lcmoff_fb_notifier;  
 
 	/* parallel charging */
 	struct parallel_params	pl;
@@ -429,6 +434,17 @@ struct smb_charger {
 	u32			headroom_mode;
 	bool			flash_init_done;
 	bool			flash_active;
+	bool			flash_status;
+        struct notifier_block    tcpc_nb;
+        struct tcpc_device      *tcpc;
+        int                     tcp_vbus_state;
+        bool			ycable_in;
+        bool                    vconn_on;
+
+        struct regulator	*smb5_vbus;
+        struct pinctrl *pinctrl;
+	struct pinctrl_state *pinctrl_active;
+	struct pinctrl_state *pinctrl_sleep;
 };
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);

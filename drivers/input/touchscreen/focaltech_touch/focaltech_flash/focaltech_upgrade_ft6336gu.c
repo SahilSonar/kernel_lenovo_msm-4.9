@@ -2,7 +2,7 @@
  *
  * FocalTech fts TouchScreen driver.
  *
- * Copyright (c) 2010-2017, Focaltech Ltd. All rights reserved.
+ * Copyright (c) 2012-2018, Focaltech Ltd. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -16,591 +16,330 @@
  */
 
 /*****************************************************************************
- *
- * File Name: focaltech_upgrade_ft6336GU.c
- *
- * Author:    fupeipei
- *
- * Created:    2016-08-15
- *
- * Abstract:
- *
- * Reference:
- *
- *****************************************************************************/
-
+*
+* File Name: focaltech_upgrade_ft6336GU.c
+*
+* Author: Focaltech Driver Team
+*
+* Created: 2016-08-15
+*
+* Abstract:
+*
+* Reference:
+*
+*****************************************************************************/
 /*****************************************************************************
- * 1.Included header files
- *****************************************************************************/
+* 1.Included header files
+*****************************************************************************/
 #include "../focaltech_core.h"
-
-#if ((IC_SERIALS == 0x03) || (IC_SERIALS == 0x04))
 #include "../focaltech_flash.h"
-#include "focaltech_upgrade_common.h"
 
+#define FTS_REG_UPGRADE2                        0xBC
+#define FTS_FLASH_STATUS_OK_FT6336GU                0xB002
 /*****************************************************************************
- * Static variables
- *****************************************************************************/
-#define APP_FILE_MAX_SIZE           (60 * 1024)
-#define APP_FILE_MIN_SIZE           (8)
-#define APP_FILE_VER_MAPPING        (0x10A)
-#define APP_FILE_VENDORID_MAPPING   (0x10C)
-#define CONFIG_START_ADDR           (0x7B0)
-#define CONFIG_VENDOR_ID_OFFSET     (0x4)
-#define CONFIG_PROJECT_ID_OFFSET    (0x20)
-#define CONFIG_VENDOR_ID_ADDR       (CONFIG_START_ADDR+CONFIG_VENDOR_ID_OFFSET)
-#define CONFIG_PROJECT_ID_ADDR      (CONFIG_START_ADDR+CONFIG_PROJECT_ID_OFFSET)
+* Static function prototypes
+*****************************************************************************/
+int fts_ft6336gu_reset_to_boot(struct i2c_client *client)
+{
+    int ret = 0;
 
-#define APP_LEN         0x00
-#define APP_LEN_NE      0x02
-#define APP_P1_ECC      0x04
-#define APP_P1_ECC_NE   0x05
-#define APP_P2_ECC      0x06
-#define APP_P2_ECC_NE   0x07
+    FTS_INFO("send 0xAA and 0x55 to FW, reset to boot environment");
 
-#define APP1_START          0x00
-#define APP1_LEN            0x100
-#define APP_VERIF_ADDR      (APP1_START + APP1_LEN)
-#define APP_VERIF_LEN       0x20
-#define APP1_ECC_ADDR       (APP_VERIF_ADDR + APP_P1_ECC)
-#define APP2_START          (APP_VERIF_ADDR + APP_VERIF_LEN)
-#define APP2_ECC_ADDR       (APP_VERIF_ADDR + APP_P2_ECC)
-/*****************************************************************************
- * Global variable or extern global variabls/functions
- *****************************************************************************/
-static int fts_ft6x36gu_get_i_file(struct i2c_client *client, int fw_valid);
-static int fts_ft6x36gu_get_app_i_file_ver(void);
-static int fts_ft6x36gu_get_app_bin_file_ver(struct i2c_client *client,
-				char *firmware_name);
-static int fts_ft6x36gu_upgrade_with_app_i_file(struct i2c_client *client);
-static int fts_ft6x36gu_upgrade_with_app_bin_file(struct i2c_client *client,
-					char *firmware_name);
+    ret = fts_i2c_write_reg(client, FTS_REG_UPGRADE2, FTS_UPGRADE_AA);
+    if (ret < 0) {
+        FTS_ERROR("write FC=0xAA fail");
+        return ret;
+    }
+    msleep(FTS_DELAY_FC_AA);
 
-struct fts_upgrade_fun fts_updatefun = {
+    ret = fts_i2c_write_reg(client, FTS_REG_UPGRADE2, FTS_UPGRADE_55);
+    if (ret < 0) {
+        FTS_ERROR("write FC=0x55 fail");
+        return ret;
+    }
 
-	.get_i_file = fts_ft6x36gu_get_i_file,
-	.get_app_bin_file_ver = fts_ft6x36gu_get_app_bin_file_ver,
-	.get_app_i_file_ver = fts_ft6x36gu_get_app_i_file_ver,
-	.upgrade_with_app_i_file = fts_ft6x36gu_upgrade_with_app_i_file,
-	.upgrade_with_app_bin_file = fts_ft6x36gu_upgrade_with_app_bin_file,
-	.upgrade_with_lcd_cfg_i_file = NULL,
-	.upgrade_with_lcd_cfg_bin_file = NULL,
+    msleep(FTS_DELAY_UPGRADE_RESET);
+    return 0;
+}
+
+/************************************************************************
+* Name: fts_ft6336gu_check_flash_status
+* Brief:
+* Input: flash_status: correct value from tp
+*        retries: read retry times
+*        retries_delay: retry delay
+* Output:
+* Return: return true if flash status check pass, otherwise return false
+***********************************************************************/
+static bool fts_ft6336gu_check_flash_status(
+    struct i2c_client *client,
+    u16 flash_status,
+    int retries,
+    int retries_delay)
+{
+    int ret = 0;
+    int i = 0;
+    u8 cmd[4] = { 0 };
+    u8 val[FTS_CMD_FLASH_STATUS_LEN] = { 0 };
+    u16 read_status = 0;
+
+    for (i = 0; i < retries; i++) {
+        /* w 6a 00 00 00 r 2 */
+        cmd[0] = FTS_CMD_FLASH_STATUS;
+        ret = fts_i2c_read(client, cmd, 4, val, FTS_CMD_FLASH_STATUS_LEN);
+        read_status = (((u16)val[0]) << 8) + val[1];
+
+        if (flash_status == read_status) {
+            /* FTS_DEBUG("[UPGRADE]flash status ok"); */
+            return true;
+        }
+        FTS_DEBUG("flash status fail,ok:%04x read:%04x, retries:%d", flash_status, read_status, i);
+        msleep(retries_delay);
+    }
+
+    return false;
+}
+
+/************************************************************************
+* Name: fts_ft6336gu_erase
+* Brief:
+* Input:
+* Output:
+* Return: return 0 if success, otherwise return error code
+***********************************************************************/
+static int fts_ft6336gu_erase(struct i2c_client *client)
+{
+    int ret = 0;
+    u8 cmd = 0;
+    bool flag = false;
+
+    FTS_INFO("**********erase app now**********");
+
+    /*send to erase flash*/
+    cmd = FTS_CMD_ERASE_APP;
+    ret = fts_i2c_write(client, &cmd, 1);
+    if (ret < 0) {
+        FTS_ERROR("erase cmd fail");
+        return ret;
+    }
+    msleep(500);
+
+    /* read status 0xF0AA: success */
+    flag = fts_ft6336gu_check_flash_status(client, FTS_FLASH_STATUS_OK_FT6336GU, 50, 100);
+    if (!flag) {
+        FTS_ERROR("ecc flash status check fail");
+        return -EIO;
+    }
+
+    return 0;
+}
+
+/************************************************************************
+* Name: fts_ft6336gu_write_app
+* Brief:
+* Input:
+* Output:
+* Return: return ecc if success, otherwise return error code
+***********************************************************************/
+static int fts_ft6336gu_write_app(struct i2c_client *client, u32 start_addr, u8 *buf, u32 len)
+{
+    int ret = 0;
+    u32 i = 0;
+    u32 j = 0;
+    u32 packet_number = 0;
+    u32 packet_len = 0;
+    u32 addr = 0;
+    u32 offset = 0;
+    u32 remainder = 0;
+    u8 packet_buf[FTS_FLASH_PACKET_LENGTH + FTS_CMD_WRITE_LEN] = { 0 };
+    u8 ecc_in_host = 0;
+    u8 cmd[4] = {0};
+    u8 val[FTS_CMD_FLASH_STATUS_LEN] = { 0 };
+    u16 read_status = 0;
+    u16 wr_ok = 0;
+
+    FTS_INFO( "**********write app to flash**********");
+
+    if (NULL == buf) {
+        FTS_ERROR("buf is null");
+        return -EINVAL;
+    }
+
+    FTS_INFO("tp fw len=%d", len);
+    packet_number = len / FTS_FLASH_PACKET_LENGTH;
+    remainder = len % FTS_FLASH_PACKET_LENGTH;
+    if (remainder > 0)
+        packet_number++;
+    packet_len = FTS_FLASH_PACKET_LENGTH;
+    FTS_INFO("write fw,num:%d, remainder:%d", packet_number, remainder);
+
+    packet_buf[0] = FTS_CMD_WRITE;
+    for (i = 0; i < packet_number; i++) {
+        offset = i * FTS_FLASH_PACKET_LENGTH;
+        addr = start_addr + offset;
+        packet_buf[1] = BYTE_OFF_16(addr);
+        packet_buf[2] = BYTE_OFF_8(addr);
+        packet_buf[3] = BYTE_OFF_0(addr);
+
+        /* last packet */
+        if ((i == (packet_number - 1)) && remainder)
+            packet_len = remainder;
+
+        packet_buf[4] = BYTE_OFF_8(packet_len);
+        packet_buf[5] = BYTE_OFF_0(packet_len);
+
+        for (j = 0; j < packet_len; j++) {
+            packet_buf[FTS_CMD_WRITE_LEN + j] = buf[offset + j];
+            ecc_in_host ^= packet_buf[FTS_CMD_WRITE_LEN + j];
+        }
+
+        ret = fts_i2c_write(client, packet_buf, packet_len + FTS_CMD_WRITE_LEN);
+        if (ret < 0) {
+            FTS_ERROR("[UPGRADE]app write fail");
+            return ret;
+        }
+        mdelay(1);
+
+        /* read status */
+        wr_ok = FTS_FLASH_STATUS_OK_FT6336GU + i + 1;
+        for (j = 0; j < FTS_RETRIES_WRITE; j++) {
+            cmd[0] = FTS_CMD_FLASH_STATUS;
+            cmd[1] = 0x00;
+            cmd[2] = 0x00;
+            cmd[3] = 0x00;
+            ret = fts_i2c_read(client, cmd , 4, val, FTS_CMD_FLASH_STATUS_LEN);
+            read_status = (((u16)val[0]) << 8) + val[1];
+
+            if (wr_ok == read_status) {
+                break;
+            }
+            mdelay(FTS_RETRIES_DELAY_WRITE);
+        }
+    }
+
+    return (int)ecc_in_host;
+}
+
+/************************************************************************
+* Name: fts_ft6336gu_ecc_cal
+* Brief:
+* Input:
+* Output:
+* Return: return ecc if success, otherwise return error code
+***********************************************************************/
+static int fts_ft6336gu_ecc_cal(struct i2c_client *client)
+{
+    int ret = 0;
+    u8 reg_val = 0;
+    u8 cmd = 0;
+
+    FTS_INFO("read out ecc");
+
+    cmd = 0xcc;
+    ret = fts_i2c_read(client, &cmd, 1, &reg_val, 1);
+    if (ret < 0) {
+        FTS_ERROR("read ft6336gu ecc fail");
+        return ret;
+    }
+
+    return reg_val;
+}
+
+/************************************************************************
+* Name: fts_ft6336gu_upgrade
+* Brief:
+* Input:
+* Output:
+* Return: return 0 if success, otherwise return error code
+***********************************************************************/
+static int fts_ft6336gu_upgrade(struct i2c_client *client, u8 *buf, u32 len)
+{
+    int ret = 0;
+    bool state = false;
+    u32 start_addr = 0;
+    int ecc_in_host = 0;
+    int ecc_in_tp = 0;
+    u32 fw_length = 0;
+
+    if (NULL == buf) {
+        FTS_ERROR("fw buf is null");
+        return -EINVAL;
+    }
+
+    if ((len < 0x120) || (len > (60 * 1024))) {
+        FTS_ERROR("fw buffer len(%x) fail", len);
+        return -EINVAL;
+    }
+
+    fw_length = ((u32)buf[0x100] << 8) + buf[0x101];
+    FTS_INFO("fw length is %d %d", fw_length, len);
+    /* enter into upgrade environment */
+    state = fts_fwupg_check_fw_valid(client);
+    if (true == state) {
+        ret = fts_ft6336gu_reset_to_boot(client);
+        if (ret < 0) {
+            FTS_ERROR("enter into bootloader fail");
+            goto fw_reset;
+        }
+    }
+
+    state = fts_fwupg_check_state(client, FTS_RUN_IN_BOOTLOADER);
+    if (!state) {
+        FTS_ERROR("fw not in bootloader, fail");
+        goto fw_reset;
+    }
+
+    ret = fts_ft6336gu_erase(client);
+    if (ret < 0) {
+        FTS_ERROR("erase cmd write fail");
+        goto fw_reset;
+    }
+
+    /* write app */
+    start_addr = upgrade_func_ft6336gu.appoff;
+    ecc_in_host = fts_ft6336gu_write_app(client, start_addr, buf, fw_length);
+    if (ecc_in_host < 0 ) {
+        FTS_ERROR("lcd initial code write fail");
+        goto fw_reset;
+    }
+
+    /* ecc */
+    ecc_in_tp = fts_ft6336gu_ecc_cal(client);
+    if (ecc_in_tp < 0 ) {
+        FTS_ERROR("ecc read fail");
+        goto fw_reset;
+    }
+
+    FTS_INFO("ecc in tp:%x, host:%x", ecc_in_tp, ecc_in_host);
+    if (ecc_in_tp != ecc_in_host) {
+        FTS_ERROR("ecc check fail");
+        goto fw_reset;
+    }
+
+    FTS_INFO("upgrade success, reset to normal boot");
+    ret = fts_fwupg_reset_in_boot(client);
+    if (ret < 0) {
+        FTS_ERROR("reset to normal boot fail");
+    }
+
+    msleep(200);
+    return 0;
+
+fw_reset:
+    FTS_INFO("upgrade fail, reset to normal boot");
+    ret = fts_fwupg_reset_in_boot(client);
+    if (ret < 0) {
+        FTS_ERROR("reset to normal boot fail");
+    }
+    return -EIO;
+}
+
+struct upgrade_func upgrade_func_ft6336gu = {
+    .ctype = {0x03, 0x04},
+    .fwveroff = 0x010A,
+    .fwcfgoff = 0x07B0,
+    .appoff = 0x0000,
+    .pramboot_supported = false,
+    .hid_supported = false,
+    .upgrade = fts_ft6336gu_upgrade,
 };
-
-/*****************************************************************************
- * Static function prototypes
- *****************************************************************************/
-#if (FTS_GET_VENDOR_ID_NUM != 0)
-/************************************************************************
- * Name: fts_ft6x36gu_get_vendor_id_flash
- * Brief:
- * Input:
- * Output:
- * Return:
- ***********************************************************************/
-static int fts_ft6x36gu_get_vendor_id_flash(struct i2c_client *client,
-					u8 *vendor_id)
-{
-	u8 reg_val[2] = {0};
-	u32 i = 0;
-	u8 rw_buf[10];
-	int i_ret;
-
-	for (i = 0; i < FTS_UPGRADE_LOOP; i++) {
-		rw_buf[0] = FTS_UPGRADE_55;
-		rw_buf[1] = FTS_UPGRADE_AA;
-		i_ret = fts_i2c_write(client, rw_buf, 2);
-		if (i_ret < 0) {
-			FTS_ERROR("[UPGRADE]: failed writing  0x55 and 0xaa!!");
-			continue;
-		}
-
-		/*check run in bootloader or not*/
-		usleep_range(1000, 2000);
-		rw_buf[0] = FTS_READ_ID_REG;
-		rw_buf[1] = rw_buf[2] = rw_buf[3] = 0x00;
-		reg_val[0] = reg_val[1] = 0x00;
-		fts_i2c_read(client, rw_buf, 4, reg_val, 2);
-
-		FTS_DEBUG("[UPGRADE]: ID1 = 0x%x,ID2 = 0x%x!!",
-					reg_val[0], reg_val[1]);
-		if ((reg_val[0] == chip_types.bootloader_idh)
-			&& (reg_val[1] == chip_types.bootloader_idl)) {
-			FTS_DEBUG("[UPGRADE]: read bootloader id ok!! ");
-			break;
-		}
-		FTS_ERROR("[UPGRADE]: read bootloader id fail!!");
-	}
-
-	if (i >= FTS_UPGRADE_LOOP)
-		return -EIO;
-
-	/*read vendor id*/
-	rw_buf[0] = 0x03;
-	rw_buf[1] = 0x00;
-	rw_buf[2] = (u8)(CONFIG_VENDOR_ID_ADDR >> 8);
-	rw_buf[3] = (u8)(CONFIG_VENDOR_ID_ADDR);
-	i_ret = fts_i2c_write(client, rw_buf, 4);
-	usleep_range(10000, 20000); /*must wait, otherwise read vendor id fail*/
-	i_ret = fts_i2c_read(client, NULL, 0, vendor_id, 1);
-	if (i_ret < 0)
-		return -EIO;
-	FTS_DEBUG("Vendor ID from Flash:%x", *vendor_id);
-	return 0;
-}
-#endif
-
-/************************************************************************
- * Name: fts_ft6x36gu_get_i_file
- * Brief: get .i file
- * Input:
- * Output:
- * Return: 0   - ok
- *		 <0 - fail
- ***********************************************************************/
-static int fts_ft6x36gu_get_i_file(struct i2c_client *client, int fw_valid)
-{
-	int ret = -EIO;
-
-#if (FTS_GET_VENDOR_ID_NUM != 0)
-	u8 vendor_id = 0;
-
-	if (fw_valid)
-		ret = fts_i2c_read_reg(client, FTS_REG_VENDOR_ID, &vendor_id);
-	else
-		ret = fts_ft6x36gu_get_vendor_id_flash(client, &vendor_id);
-
-	FTS_DEBUG("[UPGRADE] tp_vendor_id=%x", vendor_id);
-	if (ret < 0) {
-		FTS_ERROR("Get upgrade file fail because of Vendor ID wrong");
-		return ret;
-	}
-
-	FTS_INFO("[UPGRADE]tp vendor id:%x, FTS_VENDOR_ID:%02x %02x %02x",
-		 vendor_id, FTS_VENDOR_1_ID, FTS_VENDOR_2_ID, FTS_VENDOR_3_ID);
-	ret = 0;
-	switch (vendor_id) {
-#if (FTS_GET_VENDOR_ID_NUM >= 1)
-	case FTS_VENDOR_1_ID:
-		g_fw_file = CTPM_FW;
-		g_fw_len = fts_getsize(FW_SIZE);
-		FTS_DEBUG("[UPGRADE]FW FILE:CTPM_FW, SIZE:%x", g_fw_len);
-		break;
-#endif
-#if (FTS_GET_VENDOR_ID_NUM >= 2)
-	case FTS_VENDOR_2_ID:
-		g_fw_file = CTPM_FW2;
-		g_fw_len = fts_getsize(FW2_SIZE);
-		FTS_DEBUG("[UPGRADE]FW FILE:CTPM_FW2, SIZE:%x", g_fw_len);
-		break;
-#endif
-#if (FTS_GET_VENDOR_ID_NUM >= 3)
-	case FTS_VENDOR_3_ID:
-		g_fw_file = CTPM_FW3;
-		g_fw_len = fts_getsize(FW3_SIZE);
-		FTS_DEBUG("[UPGRADE]FW FILE:CTPM_FW3, SIZE:%x", g_fw_len);
-		break;
-#endif
-	default:
-		FTS_ERROR("[UPGRADE]Vendor ID check fail, get fw file fail");
-		ret = -EIO;
-		break;
-	}
-#endif
-
-	return ret;
-}
-
-/************************************************************************
- * Name: fts_ft6x36gu_get_app_bin_file_ver
- * Brief:  get .i file version
- * Input: no
- * Output: no
- * Return: fw version
- ***********************************************************************/
-static int fts_ft6x36gu_get_app_bin_file_ver(struct i2c_client *client,
-				char *firmware_name)
-{
-	const struct firmware *fw = NULL;
-	int fw_ver = 0;
-	int ret;
-
-	FTS_FUNC_ENTER();
-
-	ret = request_firmware(&fw, firmware_name, &client->dev);
-	if (ret) {
-		FTS_ERROR("[UPGRADE]: failed to get fw %s\n", firmware_name);
-		return ret;
-	}
-
-	if (fw->size < APP_FILE_MIN_SIZE || fw->size > APP_FILE_MAX_SIZE)
-		FTS_ERROR("[UPGRADE]: FW length(%x) error", fw->size);
-	else
-		fw_ver = fw->data[APP_FILE_VER_MAPPING];
-
-	release_firmware(fw);
-	FTS_FUNC_EXIT();
-
-	return fw_ver;
-}
-
-/************************************************************************
- * Name: fts_ft6x36gu_get_app_i_file_ver
- * Brief:  get .i file version
- * Input: no
- * Output: no
- * Return: fw version
- ***********************************************************************/
-static int fts_ft6x36gu_get_app_i_file_ver(void)
-{
-	int fwsize = g_fw_len;
-
-	if (fwsize < APP_FILE_MIN_SIZE || fwsize > APP_FILE_MAX_SIZE) {
-		FTS_ERROR("[UPGRADE]: FW length(%x) error", fwsize);
-		return 0;
-	}
-
-	return g_fw_file[APP_FILE_VER_MAPPING];
-}
-
-/*****************************************************************************
- * Name: fts_check_app_bin_valid
- * Brief:
- * Input:
- * Output:
- * Return:
- *****************************************************************************/
-static bool fts_check_app_bin_valid(u8 *buf)
-{
-	int i;
-	u16 len;
-	u16 len_neg;
-	u16 ecc2_len = 0;
-	u8 cal_ecc = 0;
-	u8 cal_ecc2 = 0;
-
-	FTS_INFO("[UPGRADE] Check APP.BIN ECC");
-
-	/* 1. start code byte */
-	if (buf[0] != 0x02) {
-		FTS_DEBUG("[UPGRADE]APP.BIN Verify- the first byte(%x) error",
-						buf[0]);
-		return false;
-	}
-
-	/* 2. len */
-	len = ((u16)buf[APP_VERIF_ADDR + APP_LEN] << 8)
-		+ buf[APP_VERIF_ADDR + APP_LEN + 1];
-	len_neg = (u16)(buf[APP_VERIF_ADDR + APP_LEN_NE] << 8)
-		+ buf[APP_VERIF_ADDR + APP_LEN_NE + 1];
-	if ((len ^ len_neg) != 0xFFFF) {
-		FTS_DEBUG("[UPGRADE]APP.BIN Verify- LENGTH(%04x) XOR error",
-						len);
-		return false;
-	}
-
-	/* 3. ecc */
-	if (((buf[APP1_ECC_ADDR] ^ buf[APP1_ECC_ADDR+1]) != 0xFF)
-		|| ((buf[APP2_ECC_ADDR] ^ buf[APP2_ECC_ADDR+1]) != 0xFF)) {
-		FTS_DEBUG("[UPGRADE]APP.BIN Verify- ECC(%x %x) XOR error",
-				buf[APP1_ECC_ADDR], buf[APP2_ECC_ADDR]);
-		return false;
-	}
-
-	/* APP1 */
-	for (i = 0; i < APP1_LEN; i++)
-		cal_ecc ^= buf[APP1_START+i];
-	/* APP2 */
-	ecc2_len = ((u16)buf[APP_VERIF_ADDR+0x10] << 8)
-			+ buf[APP_VERIF_ADDR+0x11];
-	ecc2_len = len - APP1_LEN - APP_VERIF_LEN - ecc2_len;
-	for (i = 0; i < ecc2_len; i++)
-		cal_ecc2 ^= buf[APP2_START+i];
-
-	if ((cal_ecc != buf[APP1_ECC_ADDR])
-		|| (cal_ecc2 != buf[APP2_ECC_ADDR])) {
-		FTS_DEBUG("[UPGRADE]APP.BIN Verify- ECC(%x %x) calc error",
-					cal_ecc, cal_ecc2);
-		return false;
-	}
-
-	return true;
-}
-
-
-/************************************************************************
- * Name: fts_ft6x36gu_upgrade_use_buf
- * Brief: fw upgrade
- * Input: i2c info, file buf, file len
- * Output: no
- * Return: fail <0
- ***********************************************************************/
-static int fts_ft6x36gu_upgrade_use_buf(struct i2c_client *client,
-				u8 *pbt_buf, u32 dw_length)
-{
-	u8 reg_val[2] = {0};
-	u32 i = 0;
-	u32 packet_number;
-	u32 j;
-	u32 temp;
-	u32 length;
-	u32 fw_length;
-	u8 packet_buf[FTS_PACKET_LENGTH + 6];
-	u8 auc_i2c_write_buf[10];
-	u8 upgrade_ecc;
-
-	FTS_FUNC_ENTER();
-
-	/*if the first byte of app is not 0x02,
-	 *the app is invaild, can not upgrade
-	 */
-	if (pbt_buf[0] != 0x02) {
-		FTS_ERROR("[UPGRADE]: app first byte != 0x02. cannot upgrade!");
-		return -EINVAL;
-	}
-
-	/*check app length*/
-	if (dw_length > 0x11f) {
-		fw_length = ((u32)pbt_buf[0x100]<<8) + pbt_buf[0x101];
-		if (dw_length < fw_length) {
-			FTS_ERROR("[UPGRADE]: Fw length error!!");
-			return -EINVAL;
-		}
-	} else {
-		FTS_ERROR("[UPGRADE]: Fw length error!!");
-		return -EINVAL;
-	}
-
-	/*send upgrade commond*/
-	for (i = 0; i < FTS_UPGRADE_LOOP; i++) {
-		/*send 0xAA and 0x55 to fw(0xFC reg), and start upgrade*/
-		fts_i2c_write_reg(client, FTS_RST_CMD_REG2, FTS_UPGRADE_AA);
-		usleep_range(10000, 20000);
-		fts_i2c_write_reg(client, FTS_RST_CMD_REG2, FTS_UPGRADE_55);
-		usleep_range(10000, 20000);
-
-		/*upgrade init in ROM*/
-		auc_i2c_write_buf[0] = FTS_UPGRADE_55;
-		fts_i2c_write(client, auc_i2c_write_buf, 1);
-		auc_i2c_write_buf[0] = FTS_UPGRADE_AA;
-		fts_i2c_write(client, auc_i2c_write_buf, 1);
-		usleep_range(10000, 20000);
-
-		/*check run in ROM now*/
-		auc_i2c_write_buf[0] = FTS_READ_ID_REG;
-		auc_i2c_write_buf[1] = auc_i2c_write_buf[2]
-					= auc_i2c_write_buf[3] = 0x00;
-		reg_val[0] = 0x00;
-		reg_val[1] = 0x00;
-		fts_i2c_read(client, auc_i2c_write_buf, 4, reg_val, 2);
-
-		if (reg_val[0] == chip_types.bootloader_idh
-			&& reg_val[1] == chip_types.bootloader_idl)
-			break;
-	}
-
-	if (i >= FTS_UPGRADE_LOOP) {
-		FTS_ERROR("[UPGRADE]: get bootload id error !!");
-		return -EIO;
-	}
-
-	/*erase app in flash*/
-	FTS_INFO("[UPGRADE]: erase app!!");
-	auc_i2c_write_buf[0] = FTS_ERASE_APP_REG;
-	fts_i2c_write(client, auc_i2c_write_buf, 1);
-	msleep(2000);
-
-	for (i = 0; i < 200; i++) {
-		auc_i2c_write_buf[0] = 0x6a;
-		auc_i2c_write_buf[1] = 0x00;
-		auc_i2c_write_buf[2] = 0x00;
-		auc_i2c_write_buf[3] = 0x00;
-		reg_val[0] = 0x00;
-		reg_val[1] = 0x00;
-		fts_i2c_read(client, auc_i2c_write_buf, 4, reg_val, 2);
-		if (0xb0 == reg_val[0] && 0x02 == reg_val[1]) {
-			FTS_INFO("[UPGRADE]: erase app finished!!");
-			break;
-		}
-		msleep(50);
-	}
-
-	/*write app to flash*/
-	upgrade_ecc = 0;
-	FTS_INFO("[UPGRADE]: write app to flash!!");
-
-	dw_length = fw_length;
-	packet_number = (dw_length) / FTS_PACKET_LENGTH;
-	packet_buf[0] = FTS_FW_WRITE_CMD;
-	packet_buf[1] = 0x00;
-
-	for (j = 0; j < packet_number; j++) {
-		temp = j * FTS_PACKET_LENGTH;
-		packet_buf[2] = (u8) (temp >> 8);
-		packet_buf[3] = (u8) temp;
-		length = FTS_PACKET_LENGTH;
-		packet_buf[4] = (u8) (length >> 8);
-		packet_buf[5] = (u8) length;
-
-		for (i = 0; i < FTS_PACKET_LENGTH; i++) {
-			packet_buf[6 + i] = pbt_buf[j * FTS_PACKET_LENGTH + i];
-			upgrade_ecc ^= packet_buf[6 + i];
-		}
-
-		fts_i2c_write(client, packet_buf, FTS_PACKET_LENGTH + 6);
-
-		for (i = 0; i < 30; i++) {
-			auc_i2c_write_buf[0] = 0x6a;
-			auc_i2c_write_buf[1] = 0x00;
-			auc_i2c_write_buf[2] = 0x00;
-			auc_i2c_write_buf[3] = 0x00;
-			reg_val[0] = 0x00;
-			reg_val[1] = 0x00;
-			fts_i2c_read(client, auc_i2c_write_buf, 4, reg_val, 2);
-			if (0xb0 == (reg_val[0] & 0xf0) && (0x03 + (j % 0x0ffd))
-				== (((reg_val[0] & 0x0f) << 8) | reg_val[1]))
-				break;
-			/* usleep_range(1000, 2000); */
-			fts_ctpm_upgrade_delay(1000);
-		}
-	}
-
-	if ((dw_length) % FTS_PACKET_LENGTH > 0) {
-		temp = packet_number * FTS_PACKET_LENGTH;
-		packet_buf[2] = (u8) (temp >> 8);
-		packet_buf[3] = (u8) temp;
-		temp = (dw_length) % FTS_PACKET_LENGTH;
-		packet_buf[4] = (u8) (temp >> 8);
-		packet_buf[5] = (u8) temp;
-
-		for (i = 0; i < temp; i++) {
-			packet_buf[6 + i] = pbt_buf[packet_number
-						* FTS_PACKET_LENGTH + i];
-			upgrade_ecc ^= packet_buf[6 + i];
-		}
-
-		fts_i2c_write(client, packet_buf, temp + 6);
-
-		for (i = 0; i < 30; i++) {
-			auc_i2c_write_buf[0] = 0x6a;
-			auc_i2c_write_buf[1] = 0x00;
-			auc_i2c_write_buf[2] = 0x00;
-			auc_i2c_write_buf[3] = 0x00;
-			reg_val[0] = 0x00;
-			reg_val[1] = 0x00;
-			fts_i2c_read(client, auc_i2c_write_buf, 4, reg_val, 2);
-			if (0xb0 == (reg_val[0] & 0xf0) && (0x03 + (j % 0x0ffd))
-				== (((reg_val[0] & 0x0f) << 8) | reg_val[1]))
-				break;
-			/* usleep_range(1000, 2000); */
-			fts_ctpm_upgrade_delay(1000);
-		}
-	}
-
-	/*read out checksum*/
-	FTS_INFO("[UPGRADE]: read out checksum!!");
-	auc_i2c_write_buf[0] = FTS_REG_ECC;
-	fts_i2c_read(client, auc_i2c_write_buf, 1, reg_val, 1);
-	/*check sum error, upgrade fail*/
-	if (reg_val[0] != upgrade_ecc) {
-		FTS_ERROR("[UPGRADE]: ecc error : FW=%02x upgrade_ecc=%02x!!",
-				reg_val[0], upgrade_ecc);
-		return -EIO;
-	}
-	FTS_INFO("[UPGRADE]: ecc ok!!");
-
-	/*upgrade success, reset the new FW*/
-	FTS_INFO("[UPGRADE]: reset the new FW!!");
-	auc_i2c_write_buf[0] = 0x07;
-	fts_i2c_write(client, auc_i2c_write_buf, 1);
-	msleep(300);
-
-	FTS_FUNC_EXIT();
-
-	return 0;
-}
-
-/************************************************************************
- * Name: fts_ft6x36gu_upgrade_with_app_i_file
- * Brief:  upgrade with *.i file
- * Input: i2c info
- * Output:
- * Return: fail < 0
- ***********************************************************************/
-static int fts_ft6x36gu_upgrade_with_app_i_file(struct i2c_client *client)
-{
-	int i_ret = 0;
-	u32 fw_len;
-	u8 *fw_buf;
-
-	FTS_INFO("[UPGRADE]**********start upgrade with app.i**********");
-
-	fw_len = g_fw_len;
-	fw_buf = g_fw_file;
-	if (fw_len < APP_FILE_MIN_SIZE || fw_len > APP_FILE_MAX_SIZE) {
-		FTS_ERROR("[UPGRADE]: FW length(%x) error", fw_len);
-		return -EIO;
-	}
-
-	i_ret = fts_ft6x36gu_upgrade_use_buf(client, fw_buf, fw_len);
-	if (i_ret != 0)
-		FTS_ERROR("[UPGRADE] upgrade app.i failed");
-	else
-		FTS_INFO("[UPGRADE]: upgrade app.i succeed");
-
-	return i_ret;
-}
-
-/************************************************************************
- * Name: fts_ft6x36gu_upgrade_with_app_bin_file
- * Brief: upgrade with *.bin file
- * Input: i2c info, file name
- * Output: no
- * Return: success =0
- ***********************************************************************/
-static int fts_ft6x36gu_upgrade_with_app_bin_file(struct i2c_client *client,
-					char *firmware_name)
-{
-	const struct firmware *fw = NULL;
-	u8 *pbt_buf = NULL;
-	int i_ret = 0;
-	bool ecc_ok = false;
-	int fwsize = 0;
-
-	FTS_INFO("[UPGRADE]**********start upgrade with app.bin**********");
-
-	i_ret = request_firmware(&fw, firmware_name, &client->dev);
-	if (i_ret) {
-		FTS_ERROR("[UPGRADE]: failed to get fw %s\n", firmware_name);
-		return i_ret;
-	}
-
-	if (fw->size < APP_FILE_MIN_SIZE || fw->size > APP_FILE_MAX_SIZE) {
-		FTS_ERROR("[UPGRADE]: app.bin length(%x) error, upgrade fail",
-							fwsize);
-		goto ERROR_BIN;
-	}
-
-	/*check the app.bin invalid or not*/
-	pbt_buf = (u8 *)fw->data;
-	ecc_ok = fts_check_app_bin_valid(pbt_buf);
-
-	if (ecc_ok) {
-		FTS_INFO("[UPGRADE] app.bin ecc ok");
-		i_ret = fts_ft6x36gu_upgrade_use_buf(client, pbt_buf, fw->size);
-		if (i_ret != 0) {
-			FTS_ERROR("[UPGRADE]: upgrade app.bin failed");
-			goto ERROR_BIN;
-		} else {
-			FTS_INFO("[UPGRADE]: upgrade app.bin succeed");
-		}
-	} else {
-		FTS_ERROR("[UPGRADE] app.bin ecc failed");
-		goto ERROR_BIN;
-	}
-
-ERROR_BIN:
-	release_firmware(fw);
-	return i_ret;
-}
-#endif  /* FT6x36GU */

@@ -475,7 +475,6 @@ static inline struct cci_pmu_model *probe_cci_model(struct platform_device *pdev
 #define CCI5xx_GLOBAL_PORT_MIN_EV	0x00
 #define CCI5xx_GLOBAL_PORT_MAX_EV	0x0f
 
-
 #define CCI5xx_GLOBAL_EVENT_EXT_ATTR_ENTRY(_name, _config) \
 	CCI_EXT_ATTR_ENTRY(_name, cci5xx_pmu_global_event_show, \
 					(unsigned long) _config)
@@ -1710,7 +1709,6 @@ static struct cci_pmu *cci_pmu_alloc(struct platform_device *pdev)
 	return cci_pmu;
 }
 
-
 static int cci_pmu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -2177,7 +2175,6 @@ static int cci_probe_ports(struct device_node *np)
 	struct resource res;
 	const char *match_str;
 	bool is_ace;
-
 
 	cci_config = of_match_node(arm_cci_matches, np)->data;
 	if (!cci_config)

@@ -2930,7 +2930,6 @@ static int fw4_ack(struct c4iw_dev *dev, struct sk_buff *skb)
 	u8 credits = hdr->credits;
 	unsigned int tid = GET_TID(hdr);
 
-
 	ep = get_ep_from_tid(dev, tid);
 	if (!ep)
 		return 0;

@@ -39,6 +39,9 @@ struct msm_sensor_id_info_t32 {
 	unsigned short sensor_id;
 	unsigned short sensor_id_mask;
 	struct msm_camera_i2c_reg_setting32 setting;
+	unsigned short eeprom_slave;
+	unsigned short vendor_id_addr;
+	uint16_t vendor_id;
 };
 
 struct msm_camera_sensor_slave_info32 {

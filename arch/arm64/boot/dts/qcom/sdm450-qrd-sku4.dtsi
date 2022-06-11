@@ -17,7 +17,7 @@
 
 &qusb_phy {
 	qcom,qusb-phy-init-seq = <0x78 0x80
-				0xb3 0x84
+				0x52 0x84
 				0x83 0x88
 				0xc7 0x8c
 				0x14 0x9c
@@ -29,26 +29,237 @@
 				0x00 0x18>;
 };
 
+&i2c_1 {
+  status = "okay";
+  rt1711@4e {
+	compatible = "richtek,rt1711";
+	reg = <0x4e>;
+	rt1711,irq_pin = <&tlmm 98 0x00>;
+	rt-dual,supported_modes = <0>; /* 0: dfp/ufp, 1: dfp, 2: ufp */
+	rt-tcpc,name = "type_c_port0"; /* tcpc_device's name */
+	rt-tcpc,role_def = <4>; /* 0: SNK Only, 1: SRC Only, 2: DRP, 3: Try.SRC, 4: Try.SNK */
+	rt-tcpc,rp_level = <0>; /* 0: Default, 1: 1.5, 2: 3.0 */
+	rt-tcpc,vconn_supply  = <1>;  /* 0: Never, 1: Always, 2: EMarkOnly, 3: StartOnly */
+	rt-tcpc,notifier_supply_num = <1>; /* the number of notifier supply */
+	pd-data {
+		/*
+			VSAFE5V = 0, MAX_POWER = 1, CUSTOM = 2,
+			MAX_POWER_LV = 0x21, MAX_POWER_LVIC = 0x31
+			MAX_POWER_HV = 0x41, MAX_POWER_HVIC = 0x51
+		*/
+		pd,charging_policy= <0x21>;
+
+		/*
+		 * Fixed 5V, 500 mA <0x00019032>
+		 * Fixed 5V, 1A <0x00019064>
+		 * Fixed 5V, 2A <0x000190c8>
+		 * Fixed 5V, 3A <0x0001912c>
+		 * Fixed 9V, 500 mA <0x0002d032>
+		 * Fixed 9V, 1A <0x0002d064>
+		 * Fixed 9V, 2A <0x0002d0c8>
+		 * Fixed 9V, 3A <0x0002d12c>
+		 * Variable 5-9V, 1A <0x8642d064>
+		 * Variable 5-9V, 2A <0x8642d0c8>
+		 * Variable 5-9V, 3A <0x8642d12c>
+		 * PPS 3V~5.9V, 3A <0xC0761E3C>
+		 */
+		pd,source-pdo-size = <1>;
+		pd,source-pdo-data = <0x00019032>; /* 5V, 500 mA */
+		pd,sink-pdo-size = <2>;
+		pd,sink-pdo-data = <0x000190c8 0x000190c8> ;   /* 0x0002d0c8 : 9V, 2A<0x04019032 0x04019064> */
+
+		/*
+		No DP, host + device
+			pd,id-vdo-size = <3>;
+			pd,id-vdo-data = <0xd00029cf 0x0 0x00010000>;
+		With DP
+			pd,id-vdo-size = <4>;
+			pd,id-vdo-data = <0xec0029cf 0x0 0x00010000 0x11000001>;
+		*/
+
+		pd,id-vdo-size = <3>;
+		pd,id-vdo-data = <0xd00029cf 0x0 0x00010000>;
+	};
+	dpm_caps {
+		local_dr_power;
+		local_dr_data;
+		// local_ext_power;
+		local_usb_comm;
+		// local_usb_suspend;
+		// local_high_cap;
+		// local_give_back;
+		local_no_suspend;
+		local_vconn_supply;
+
+		// attemp_discover_cable_dfp;
+		attemp_enter_dp_mode;
+		attemp_discover_cable;
+		attemp_discover_id;
+
+		/* 0: disable, 1: prefer_snk, 2: prefer_src */
+		pr_check = <0>;
+		// pr_reject_as_source;
+		// pr_reject_as_sink;
+		// pr_check_gp_source;
+		// pr_check_gp_sink;
+
+		/* 0: disable, 1: prefer_ufp, 2: prefer_dfp */
+		dr_check = <0>;
+		// dr_reject_as_dfp;
+		// dr_reject_as_ufp;
+	};
+	displayport {
+		/* connection type = "both", "ufp_d", "dfp_d" */
+		1st_connection = "dfp_d";
+		2nd_connection = "dfp_d";
+		signal,dp_v13;
+		//signal,dp_gen2;
+		usbr20_not_used;
+		typec,receptacle;
+		ufp_d {
+			//pin_assignment,mode_a;
+			//pin_assignment,mode_b;
+			//pin_assignment,mode_c;
+			//pin_assignment,mode_d;
+			//pin_assignment,mode_e;
+		};
+		dfp_d {
+			/* Only support mode C & D */
+			//pin_assignment,mode_a;
+			//pin_assignment,mode_b;
+			pin_assignment,mode_c;
+			pin_assignment,mode_d;
+			pin_assignment,mode_e;
+			pin_assignment,mode_f;
+		};
+	};
+   };
+};
+
 &i2c_3 {
-	status = "disabled";
+	status = "okay";
+
+	focaltech@38{ 
+		compatible = "focaltech,fts";	
+		reg = <0x38>;  					
+		interrupt-parent = <&tlmm>;				
+		interrupts = <65 0x2002>;
+		focaltech,reset-gpio = <&tlmm 64 0x00>; 
+		focaltech,irq-gpio = <&tlmm 65 0x2002>; 
+        vdd-supply = <&pm8953_l10>;
+        vcc_i2c-supply = <&pm8953_l6>;
+        focaltech,vcc-gpio = <&tlmm 99 0x00>;
+		focaltech,max-touch-number = <10>;			
+		focaltech,display-coords =  <0 0 1080 2160>;	 
+		pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_release";
+		pinctrl-0 = <&ts_int_active &ts_reset_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		pinctrl-2 = <&ts_release>;
+		/*focaltech,have-key;*/
+		focaltech,key-number = <3>;	
+		focaltech,keys = <139 102 158>; 	
+		focaltech,key-y-coord = <2600>; 
+		focaltech,key-x-coords = <200 600 800>;
+	};
+
+    goodix_ts@5d {
+        compatible = "goodix,gt9xx";
+        reg = <0x5d>;
+        interrupt-parent = <&tlmm>;
+        interrupts = <65 0x2002>;
+        vdd_ana-supply = <&pm8953_l10>;
+        vcc_i2c-supply = <&pm8953_l6>;
+        pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
+        "pmx_ts_release";
+        pinctrl-0 = <&ts_int_active &ts_reset_active>;
+        pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+        pinctrl-2 = <&ts_release>;
+        goodix,vcc-gpio = <&tlmm 99 0x00>;
+        goodix,rst-gpio = <&tlmm 64 0x00>;
+        goodix,irq-gpio = <&tlmm 65 0x2002>;
+        goodix,cfg-group2 = [
+            41 D0 02 00 05 05 75 01 01 0F 24
+            0F 64 3C 03 05 00 00 00 02 00 00
+            00 16 19 1C 14 8C 0E 0E 24 00 31
+            0D 00 00 00 83 33 1D 00 41 00 00
+            00 00 00 08 0A 00 2B 1C 3C 94 D5
+            03 08 00 00 04 93 1E 00 82 23 00
+            74 29 00 69 2F 00 5F 37 00 5F 20
+            40 60 00 F0 40 30 55 50 27 00 00
+            00 00 00 00 00 00 00 00 00 00 00
+            00 00 00 00 00 00 00 14 19 00 00
+            50 50 02 04 06 08 0A 0C 0E 10 12
+            14 16 18 1A 1C 00 00 00 00 00 00
+            00 00 00 00 00 00 00 00 00 00 1D
+            1E 1F 20 21 22 24 26 28 29 2A 1C
+            18 16 14 13 12 10 0F 0C 0A 08 06
+            04 02 00 00 00 00 00 00 00 00 00
+            00 00 00 00 00 00 00 00 9C 01];
+    };
+
+};
+
+&i2c_2 {
+	status = "okay";
+	aw87329@58 {
+		compatible = "awinic,aw87329_main_pa";
+		reg = <0x58>;
+	    reset-gpio = <&tlmm 96 0>;
+		status = "okay";
+	};
+	aw87329@59 {
+		compatible = "awinic,aw87329_sub_pa";
+		reg = <0x59>;
+	    reset-gpio = <&tlmm 97 0>;
+		status = "okay";
+	};
+
+    abov_sar@20 {
+        compatible = "abov,sxT316";
+        reg = <0x20>;
+        interrupt-parent = <&tlmm>;
+	    interrupts = <93 0x2008>;
+        above,irq-gpio = <&tlmm 93 0x2008>;
+    };
+
 };
 
 &int_codec {
 	status = "okay";
 	qcom,model = "msm8953-sku4-snd-card";
 	qcom,msm-micbias1-ext-cap;
-	qcom,msm-micbias2-ext-cap;
+	/*qcom,msm-micbias2-ext-cap;*/
 	qcom,msm-mbhc-hphl-swh = <1>;
 	qcom,msm-mbhc-gnd-swh = <0>;
-	qcom,msm-hs-micbias-type = "external";
+	qcom,msm-hs-micbias-type = "internal";
+	headset-ana-sw-en = <&tlmm 40 0>;
+	headset-ana-sw-int = <&tlmm 41 0>;
+	qcom,audio-routing =
+				"RX_BIAS", "MCLK",
+				"SPK_RX_BIAS", "MCLK",
+				"INT_LDO_H", "MCLK",
+				"RX_I2S_CLK", "MCLK",
+				"TX_I2S_CLK", "MCLK",
+				"MIC BIAS External", "Handset Mic",
+				"MIC BIAS Internal2", "Headset Mic",
+				"MIC BIAS External", "Secondary Mic",
+				"AMIC1", "MIC BIAS External",
+				"AMIC2", "MIC BIAS Internal2",
+				"AMIC3", "MIC BIAS External",
+				"ADC1_IN", "ADC1_OUT",
+				"ADC2_IN", "ADC2_OUT",
+				"ADC3_IN", "ADC3_OUT",
+				"PDM_IN_RX1", "PDM_OUT_RX1",
+				"PDM_IN_RX2", "PDM_OUT_RX2",
+				"PDM_IN_RX3", "PDM_OUT_RX3";
 };
 
 &wsa881x_i2c_f {
-	status = "okay";
+	status = "disabled";
 };
 
 &wsa881x_i2c_45 {
-	status = "okay";
+	status = "disabled";
 };
 
 &tlmm {
@@ -158,6 +369,18 @@
 };
 
 &soc {
+	goodix_fp {
+		status = "ok";
+		compatible = "goodix,fingerprint";
+		interrupt-parent = <&tlmm>;
+		fp-gpio-irq = <&tlmm 48 0x00>;
+		fp-gpio-reset = <&tlmm 140 0x00>;
+		fp-gpio-id = <&tlmm 50 0x00>;
+		goodix,gpio_pwr = <&tlmm 90 0x1>;
+	};
+};
+/*
+&soc {
 	gpio_keys {
 		camera_focus {
 			label = "camera_focus";
@@ -176,7 +399,7 @@
 		};
 	};
 };
-
+*/
 &i2c_2 {
 #include "smb1355.dtsi"
 };
@@ -256,7 +479,39 @@
 	};
 };
 
+&tlmm {
+
+    	vconn_active: vconn_active {
+		mux {
+			pins = "gpio94";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio94";
+			drive-strength = <8>;
+			bias-disable = <0>; /* no pull */
+			output-high;
+		};
+	};
+
+        vconn_sleep: vconn_sleep {
+		mux {
+			pins = "gpio94";
+			function = "gpio";
+		};
+		config {
+			pins = "gpio94";
+			drive-strength = <2>;
+			bias-pull-down;
+			output-low;
+		};
+	};
+};
+
 &pmi632_charger {
-	qcom,thermal-mitigation = <4200000 3500000 3000000 2500000
-				2000000 1500000 1000000 500000>;
+	qcom,thermal-mitigation = <1900000 1500000 1000000 500000>;
+        smb5_vbus-supply = <&smb5_vbus>;
+        pinctrl-names = "vconn_active","vconn_sleep";
+	pinctrl-0 = <&vconn_active>;
+        pinctrl-1 = <&vconn_sleep>;
 };

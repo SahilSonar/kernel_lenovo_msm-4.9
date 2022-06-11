@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/input/qpnp-power-on.h>
 #include <linux/of_address.h>
+#include <linux/wt_system_monitor.h>
 
 #include <asm/cacheflush.h>
 #include <asm/system_misc.h>
@@ -63,7 +64,13 @@ static void scm_disable_sdi(void);
  * There is no API from TZ to re-enable the registers.
  * So the SDI cannot be re-enabled when it already by-passed.
  */
+static struct kobject dload_kobj;
+static void scm_disable_sdi(void);
+#ifdef WT_FINAL_RELEASE
+static int download_mode = 0;
+#else
 static int download_mode = 1;
+#endif
 #else
 static const int download_mode;
 #endif
@@ -74,6 +81,7 @@ static const int download_mode;
 #ifdef CONFIG_RANDOMIZE_BASE
 #define KASLR_OFFSET_PROP "qcom,msm-imem-kaslr_offset"
 #endif
+
 
 static int in_panic;
 static int dload_type = SCM_DLOAD_FULLDUMP;
@@ -165,6 +173,7 @@ static bool get_dload_mode(void)
 
 static void enable_emergency_dload_mode(void)
 {
+#ifndef WT_FINAL_RELEASE
 	int ret;
 
 	if (emergency_dload_mode_addr) {
@@ -188,6 +197,10 @@ static void enable_emergency_dload_mode(void)
 	ret = scm_set_dload_mode(SCM_EDLOAD_MODE, 0);
 	if (ret)
 		pr_err("Failed to set secure EDLOAD mode: %d\n", ret);
+#else
+	pr_err("final release version, not support EDLOAD mode\n");
+#endif
+
 }
 
 static int dload_set(const char *val, const struct kernel_param *kp)
@@ -293,12 +306,12 @@ static void msm_restart_prepare(const char *cmd)
 
 	if (qpnp_pon_check_hard_reset_stored()) {
 		/* Set warm reset as true when device is in dload mode */
-		if (get_dload_mode() ||
+		if (get_dload_mode() || in_panic ||
 			((cmd != NULL && cmd[0] != '\0') &&
 			!strcmp(cmd, "edl")))
 			need_warm_reset = true;
 	} else {
-		need_warm_reset = (get_dload_mode() ||
+		need_warm_reset = (get_dload_mode() || in_panic ||
 				(cmd != NULL && cmd[0] != '\0'));
 	}
 
@@ -309,6 +322,9 @@ static void msm_restart_prepare(const char *cmd)
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
 
 	if (cmd != NULL) {
+#ifdef WT_SYSTEM_MONITOR
+		set_reset_magic(RESET_MAGIC_CMD_REBOOT);
+#endif
 		if (!strncmp(cmd, "bootloader", 10)) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_BOOTLOADER);

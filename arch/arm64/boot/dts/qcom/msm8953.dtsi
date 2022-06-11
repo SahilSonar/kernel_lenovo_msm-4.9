@@ -68,7 +68,7 @@
 		other_ext_mem: other_ext_region@0 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0x0 0x85b00000 0x0 0xd00000>;
+			reg = <0x0 0x84a00000 0x0 0x1e00000>;
 		};
 
 		modem_mem: modem_region@0 {
@@ -147,7 +147,23 @@
 		dump_mem: mem_dump_region {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x400000>;
+			size = <0 0x400000>;
+		};
+
+		wt_share_mem: wt_region@92000000 {
+			compatible = "wt_share_mem";
+			no-map;
+			reg = <0 0x92000000 0 0x00100000>;
+		};
+
+		pstore: ramoops@92100000 {
+			compatible = "ramoops";
+			reg = <0 0x92100000 0 0x100000>;
+			ecc-size	= <0x10>;
+			console-size	= <0x80000>;
+			record-size	= <0x40000>;
+			ftrace-size	= <0x20000>;
+			pmsg-size	= <0x20000>;
 		};
 	};
 
@@ -415,9 +431,9 @@
 		#thermal-sensor-cells = <1>;
 	};
 
-	qcom_seecom: qseecom@85b00000 {
+	qcom_seecom: qseecom@84a00000 {
 		compatible = "qcom,qseecom";
-		reg = <0x85b00000 0x800000>;
+		reg = <0x84a00000 0x1900000>;
 		reg-names = "secapp-region";
 		qcom,hlos-num-ce-hw-instances = <1>;
 		qcom,hlos-ce-hw-instance = <0>;
@@ -730,7 +746,7 @@
 		interrupt-names = "qup_irq";
 		interrupts = <0 95 0>;
 		qcom,master-id = <86>;
-		qcom,clk-freq-out = <100000>;
+		qcom,clk-freq-out = <1000000>;
 		qcom,clk-freq-in  = <19200000>;
 		clock-names = "iface_clk", "core_clk";
 		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
@@ -792,6 +808,7 @@
 		qcom,noise-rjct-scl = <0>;
 		qcom,noise-rjct-sda = <0>;
 		qcom,master-id = <86>;
+        qcom,disable-dma;
 		dmas = <&dma_blsp1 8 64 0x20000020 0x20>,
 			<&dma_blsp1 9 32 0x20000020 0x20>;
 		dma-names = "tx", "rx";
@@ -1298,8 +1315,8 @@
 		reg = <0xb017000 0x1000>;
 		reg-names = "wdt-base";
 		interrupts = <0 3 0>, <0 4 0>;
-		qcom,bark-time = <11000>;
-		qcom,pet-time = <9360>;
+		qcom,bark-time = <15000>;
+		qcom,pet-time = <8000>;
 		qcom,ipi-ping;
 		qcom,wakeup-enable;
 		qcom,scandump-size = <0x40000>;
@@ -1370,6 +1387,15 @@
 			compatible = "qcom,msm-imem-diag-dload";
 			reg = <0xc8 200>;
 		};
+		wt_reset_reason_addr@fe4 {
+			compatible = "qcom,msm-imem-wt_reset_reason_addr";
+			reg = <0xfe4 4>;
+		};
+
+		tz_reset_reason_addr@7a4 {
+			compatible = "qcom,msm-imem-tz_reset_reason_addr";
+			reg = <0x7a4 4>;
+		};
 	};
 
 	qcom,memshare {
@@ -1397,6 +1423,18 @@
 			qcom,allocate-boot-time;
 			label = "modem";
 		};
+	};
+
+        sn_fuse: snfuse@0xA60A8 {
+		compatible = "qcom,sn-fuse";
+		reg = <0xA60A8 0x4>;
+		reg-names = "sn-base";
+	};
+
+	sec_boot_fuse: secbootfuse@0xA01D0 {
+		compatible = "qcom,sec-boot-fuse";
+		reg = <0xA01D0 0x4>;
+		reg-names = "sec-boot-base";
 	};
 
 	jtag_mm0: jtagmm@619c000 {

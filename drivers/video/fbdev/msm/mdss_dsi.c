@@ -1342,6 +1342,7 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 				panel_data);
 
 	panel_info = &ctrl_pdata->panel_data.panel_info;
+	pr_err("%s[Display]: dsi_off enter. \n", __func__);
 
 	pr_debug("%s+: ctrl=%pK ndx=%d power_state=%d\n",
 		__func__, ctrl_pdata, ctrl_pdata->ndx, power_state);
@@ -1399,6 +1400,7 @@ panel_power_ctrl:
 	ctrl_pdata->cur_max_pkt_size = 0;
 end:
 	pr_debug("%s-:\n", __func__);
+	pr_err("%s[Display]: dsi_off exit. \n", __func__);
 
 	return ret;
 }
@@ -1524,6 +1526,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		mdss_dsi_validate_debugfs_info(ctrl_pdata);
 
 	cur_power_state = pdata->panel_info.panel_power_state;
+	pr_err("%s[Display]: dsi_on enter. \n", __func__);
 	pr_debug("%s+: ctrl=%pK ndx=%d cur_power_state=%d\n", __func__,
 		ctrl_pdata, ctrl_pdata->ndx, cur_power_state);
 
@@ -1611,6 +1614,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (pdata->panel_info.type == MIPI_CMD_PANEL)
 		mdss_dsi_clk_ctrl(ctrl_pdata, ctrl_pdata->dsi_clk_handle,
 				  MDSS_DSI_ALL_CLKS, MDSS_DSI_CLK_OFF);
+	pr_err("%s[Display]: dsi_on exit. \n", __func__);
 
 end:
 	pr_debug("%s-:\n", __func__);
@@ -1699,6 +1703,7 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 	pr_debug("%s+: ctrl=%pK ndx=%d cur_power_state=%d ctrl_state=%x\n",
 			__func__, ctrl_pdata, ctrl_pdata->ndx,
 		pdata->panel_info.panel_power_state, ctrl_pdata->ctrl_state);
+	pr_err("%s[Display]: ublank +. \n", __func__);
 
 	mdss_dsi_pm_qos_update_request(DSI_DISABLE_PC_LATENCY);
 
@@ -1748,6 +1753,7 @@ error:
 				  MDSS_DSI_ALL_CLKS, MDSS_DSI_CLK_OFF);
 
 	mdss_dsi_pm_qos_update_request(DSI_ENABLE_PC_LATENCY);
+	pr_err("%s[Display]: ublank -. \n", __func__);
 
 	pr_debug("%s-:\n", __func__);
 
@@ -1768,6 +1774,7 @@ static int mdss_dsi_blank(struct mdss_panel_data *pdata, int power_state)
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 	mipi = &pdata->panel_info.mipi;
+	pr_err("%s[Display]: blank +. \n", __func__);
 
 	pr_debug("%s+: ctrl=%pK ndx=%d power_state=%d\n",
 		__func__, ctrl_pdata, ctrl_pdata->ndx, power_state);
@@ -1827,6 +1834,7 @@ error:
 	mdss_dsi_clk_ctrl(ctrl_pdata, ctrl_pdata->dsi_clk_handle,
 			  MDSS_DSI_ALL_CLKS, MDSS_DSI_CLK_OFF);
 	pr_debug("%s-:End\n", __func__);
+	pr_err("%s[Display]: blank -. \n", __func__);
 	return ret;
 }
 
